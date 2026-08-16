@@ -1,6 +1,6 @@
 cask "spotdraw" do
   version "1.0.0"
-  sha256 "" # Will be filled after release
+  sha256 "83cd19442177488a052159cb0725fa2e46dd204bc48bd493cbed8de00552bcad"
 
   url "https://github.com/asub927/spotdraw/releases/download/v#{version}/Spotdraw-#{version}.dmg"
   name "Spotdraw"
