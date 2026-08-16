@@ -1,0 +1,407 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		13D1ABB826C82839673FDB72 /* OverlayWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0388E81389BF0D37DFFD6EE /* OverlayWindowController.swift */; };
+		2C211F23F5AB19F04A78CF14 /* CursorManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59A81634B706563638927BC7 /* CursorManager.swift */; };
+		44BF89F6629710EBC8A94546 /* DrawingState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7EA2467330C024968B8F48F /* DrawingState.swift */; };
+		85712F8213ADCFBDB68E1205 /* MenuBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42E9EB1EE05E0B998CA45E4B /* MenuBarController.swift */; };
+		898F94A8131C9C9643A517EA /* SpotlightWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDD666476314F9F62DCC7F3 /* SpotlightWindow.swift */; };
+		8AD9484C71AF833131EB51F7 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC96B0ADB34385E14D26894C /* main.swift */; };
+		8C56A56377CAD6AAA118F65A /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4681B6B729ABEB45210CF6B7 /* HotkeyManager.swift */; };
+		92E69A370DE4E87EFD759DD9 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A0969748960A8B3508F26AA /* SettingsManager.swift */; };
+		A19686BD825E00BB0E73F410 /* CursorHighlightWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C678A3FBAB1C8C013B9FE173 /* CursorHighlightWindow.swift */; };
+		C558A2513C4F9E96FFDD7133 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A1E7686F9ACED2027893CC9 /* AppDelegate.swift */; };
+		DF493C57E2B4A9CAA6E5F45E /* OverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F42398B267295F58B62721 /* OverlayView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		20418C8F1AE832414DCFBC59 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		2A0969748960A8B3508F26AA /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
+		3C72CB3505C9FA7F03CD32D7 /* Spotdraw.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Spotdraw.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		42E9EB1EE05E0B998CA45E4B /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
+		4681B6B729ABEB45210CF6B7 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
+		59A81634B706563638927BC7 /* CursorManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorManager.swift; sourceTree = "<group>"; };
+		6A1E7686F9ACED2027893CC9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		7CDD666476314F9F62DCC7F3 /* SpotlightWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightWindow.swift; sourceTree = "<group>"; };
+		B9F42398B267295F58B62721 /* OverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayView.swift; sourceTree = "<group>"; };
+		BC96B0ADB34385E14D26894C /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		C0388E81389BF0D37DFFD6EE /* OverlayWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindowController.swift; sourceTree = "<group>"; };
+		C678A3FBAB1C8C013B9FE173 /* CursorHighlightWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorHighlightWindow.swift; sourceTree = "<group>"; };
+		D7EA2467330C024968B8F48F /* DrawingState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingState.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0A036E417BB36D4DEE5CA740 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3C72CB3505C9FA7F03CD32D7 /* Spotdraw.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		0A80D8104C4560195D5247CD /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				42E9EB1EE05E0B998CA45E4B /* MenuBarController.swift */,
+			);
+			path = MenuBar;
+			sourceTree = "<group>";
+		};
+		12BB1386BFADE96B003ED1D5 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				D7EA2467330C024968B8F48F /* DrawingState.swift */,
+				4681B6B729ABEB45210CF6B7 /* HotkeyManager.swift */,
+				2A0969748960A8B3508F26AA /* SettingsManager.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		1A61790B956E8E78E4B5B8C3 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				6A1E7686F9ACED2027893CC9 /* AppDelegate.swift */,
+				BC96B0ADB34385E14D26894C /* main.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		418074FCF2F481B3A4A0EFBC /* Spotdraw */ = {
+			isa = PBXGroup;
+			children = (
+				EE3E361F74E277C954C1D7D5 /* Annotation */,
+				1A61790B956E8E78E4B5B8C3 /* App */,
+				12BB1386BFADE96B003ED1D5 /* Core */,
+				CEF6AB4FA417B5B34B53EA13 /* Cursor */,
+				0A80D8104C4560195D5247CD /* MenuBar */,
+				EBF7214CB4A0001803230D13 /* Overlay */,
+				565528A0918900DF3D8067A2 /* Resources */,
+				699633E1215968351352EEFE /* Settings */,
+				B7050A12D8D9B6F492B043FE /* Spotlight */,
+				F8C73B5A4F2B504990AD0AFC /* Zoom */,
+			);
+			path = Spotdraw;
+			sourceTree = "<group>";
+		};
+		56522C6DAD3818E652C9DD20 = {
+			isa = PBXGroup;
+			children = (
+				418074FCF2F481B3A4A0EFBC /* Spotdraw */,
+				0A036E417BB36D4DEE5CA740 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		565528A0918900DF3D8067A2 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				20418C8F1AE832414DCFBC59 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		699633E1215968351352EEFE /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		B7050A12D8D9B6F492B043FE /* Spotlight */ = {
+			isa = PBXGroup;
+			children = (
+				7CDD666476314F9F62DCC7F3 /* SpotlightWindow.swift */,
+			);
+			path = Spotlight;
+			sourceTree = "<group>";
+		};
+		CEF6AB4FA417B5B34B53EA13 /* Cursor */ = {
+			isa = PBXGroup;
+			children = (
+				C678A3FBAB1C8C013B9FE173 /* CursorHighlightWindow.swift */,
+				59A81634B706563638927BC7 /* CursorManager.swift */,
+			);
+			path = Cursor;
+			sourceTree = "<group>";
+		};
+		EBF7214CB4A0001803230D13 /* Overlay */ = {
+			isa = PBXGroup;
+			children = (
+				B9F42398B267295F58B62721 /* OverlayView.swift */,
+				C0388E81389BF0D37DFFD6EE /* OverlayWindowController.swift */,
+			);
+			path = Overlay;
+			sourceTree = "<group>";
+		};
+		EE3E361F74E277C954C1D7D5 /* Annotation */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Annotation;
+			sourceTree = "<group>";
+		};
+		F8C73B5A4F2B504990AD0AFC /* Zoom */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Zoom;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3BF664A283B4B7692908CF89 /* Spotdraw */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1A75B2B2464218F292D650B6 /* Build configuration list for PBXNativeTarget "Spotdraw" */;
+			buildPhases = (
+				3221564B628415C5F706984C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Spotdraw;
+			packageProductDependencies = (
+			);
+			productName = Spotdraw;
+			productReference = 3C72CB3505C9FA7F03CD32D7 /* Spotdraw.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		2EB90390817598E2BD21D59E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					3BF664A283B4B7692908CF89 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 6A120341A0B7D2886EF4886F /* Build configuration list for PBXProject "Spotdraw" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 56522C6DAD3818E652C9DD20;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0A036E417BB36D4DEE5CA740 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3BF664A283B4B7692908CF89 /* Spotdraw */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3221564B628415C5F706984C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C558A2513C4F9E96FFDD7133 /* AppDelegate.swift in Sources */,
+				A19686BD825E00BB0E73F410 /* CursorHighlightWindow.swift in Sources */,
+				2C211F23F5AB19F04A78CF14 /* CursorManager.swift in Sources */,
+				44BF89F6629710EBC8A94546 /* DrawingState.swift in Sources */,
+				8C56A56377CAD6AAA118F65A /* HotkeyManager.swift in Sources */,
+				85712F8213ADCFBDB68E1205 /* MenuBarController.swift in Sources */,
+				DF493C57E2B4A9CAA6E5F45E /* OverlayView.swift in Sources */,
+				13D1ABB826C82839673FDB72 /* OverlayWindowController.swift in Sources */,
+				92E69A370DE4E87EFD759DD9 /* SettingsManager.swift in Sources */,
+				898F94A8131C9C9643A517EA /* SpotlightWindow.swift in Sources */,
+				8AD9484C71AF833131EB51F7 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1236FDEB9BC3E20BC36234E5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		5548C7C2C1E063A7632DFBB7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Spotdraw/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LSUIElement = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spotdraw.app;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		8A448A3FD57F7DBFEAF0D065 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Spotdraw/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				LSUIElement = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.spotdraw.app;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		ED047660883AB06456993D81 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1A75B2B2464218F292D650B6 /* Build configuration list for PBXNativeTarget "Spotdraw" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5548C7C2C1E063A7632DFBB7 /* Debug */,
+				8A448A3FD57F7DBFEAF0D065 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6A120341A0B7D2886EF4886F /* Build configuration list for PBXProject "Spotdraw" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ED047660883AB06456993D81 /* Debug */,
+				1236FDEB9BC3E20BC36234E5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 2EB90390817598E2BD21D59E /* Project object */;
+}
