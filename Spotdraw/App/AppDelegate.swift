@@ -12,11 +12,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var cursorManager: CursorManager!
     private var hotkeyManager: HotkeyManager!
     private var settingsManager: SettingsManager!
+    private var settingsWindowController: SettingsWindowController!
 
     // MARK: - App Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         settingsManager = SettingsManager.shared
+        settingsWindowController = SettingsWindowController()
         setupMenuBar()
         setupOverlay()
         setupCursorManager()
@@ -37,6 +39,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             onClearAll: { [weak self] in self?.clearAll() },
             onQuit: { NSApp.terminate(nil) }
         )
+        menuBarController.onOpenSettings = { [weak self] in
+            self?.settingsWindowController.showWindow()
+        }
     }
 
     private func setupOverlay() {

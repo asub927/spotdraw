@@ -13,7 +13,8 @@ let package = Package(
             exclude: ["Resources/Info.plist"],
             linkerSettings: [
                 .linkedFramework("Cocoa"),
-                .linkedFramework("QuartzCore")
+                .linkedFramework("QuartzCore"),
+                .linkedFramework("SwiftUI")
             ]
         )
     ]

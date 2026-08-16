@@ -6,12 +6,14 @@ enum GlobalShortcut {
     case toggleAnnotation   // Ctrl+D
     case toggleCursorHighlight  // Ctrl+S
     case toggleSpotlight    // Ctrl+L
+    case toggleZoom         // Ctrl+Z
 
     var keyCode: UInt16 {
         switch self {
         case .toggleAnnotation: return 2       // D
         case .toggleCursorHighlight: return 1  // S
         case .toggleSpotlight: return 37       // L
+        case .toggleZoom: return 6             // Z
         }
     }
 

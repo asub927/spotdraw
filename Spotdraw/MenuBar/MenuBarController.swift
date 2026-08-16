@@ -12,6 +12,7 @@ class MenuBarController {
     private let onToggleSpotlight: () -> Void
     private let onClearAll: () -> Void
     private let onQuit: () -> Void
+    var onOpenSettings: (() -> Void)?
 
     private var annotationMenuItem: NSMenuItem!
     private var cursorMenuItem: NSMenuItem!
@@ -62,9 +63,57 @@ class MenuBarController {
 
         menu.addItem(NSMenuItem.separator())
 
+        // Tool selection submenu
+        let toolSubmenu = NSMenu()
+        let tools: [(String, ToolType)] = [
+            ("Pen", .pen),
+            ("Arrow", .arrow),
+            ("Rectangle", .rectangle),
+            ("Circle", .circle),
+            ("Line", .line),
+            ("Highlighter", .highlighter),
+            ("Eraser", .eraser)
+        ]
+        for (title, _) in tools {
+            let item = NSMenuItem(title: title, action: #selector(selectToolAction(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = title
+            toolSubmenu.addItem(item)
+        }
+        let toolMenuItem = NSMenuItem(title: "Tool", action: nil, keyEquivalent: "")
+        toolMenuItem.submenu = toolSubmenu
+        menu.addItem(toolMenuItem)
+
+        // Color selection submenu
+        let colorSubmenu = NSMenu()
+        let colors: [(String, NSColor)] = [
+            ("Red", .systemRed),
+            ("Blue", .systemBlue),
+            ("Green", .systemGreen),
+            ("Yellow", .systemYellow),
+            ("White", .white)
+        ]
+        for (title, _) in colors {
+            let item = NSMenuItem(title: title, action: #selector(selectColorAction(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = title
+            colorSubmenu.addItem(item)
+        }
+        let colorMenuItem = NSMenuItem(title: "Color", action: nil, keyEquivalent: "")
+        colorMenuItem.submenu = colorSubmenu
+        menu.addItem(colorMenuItem)
+
+        menu.addItem(NSMenuItem.separator())
+
         let clearItem = NSMenuItem(title: "Clear All", action: #selector(clearAllAction), keyEquivalent: "")
         clearItem.target = self
         menu.addItem(clearItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettingsAction), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -118,7 +167,37 @@ class MenuBarController {
         onClearAll()
     }
 
+    @objc private func openSettingsAction() {
+        onOpenSettings?()
+    }
+
+    @objc private func selectToolAction(_ sender: NSMenuItem) {
+        guard let toolName = sender.representedObject as? String else { return }
+        // Tool selection is communicated via notification for loose coupling
+        NotificationCenter.default.post(name: .toolDidChange, object: nil, userInfo: ["tool": toolName])
+    }
+
+    @objc private func selectColorAction(_ sender: NSMenuItem) {
+        guard let colorName = sender.representedObject as? String else { return }
+        let colorMap: [String: NSColor] = [
+            "Red": .systemRed,
+            "Blue": .systemBlue,
+            "Green": .systemGreen,
+            "Yellow": .systemYellow,
+            "White": .white
+        ]
+        if let color = colorMap[colorName] {
+            SettingsManager.shared.strokeColor = color
+        }
+    }
+
     @objc private func quitAction() {
         onQuit()
     }
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let toolDidChange = Notification.Name("com.spotdraw.toolDidChange")
 }

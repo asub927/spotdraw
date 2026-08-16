@@ -8,9 +8,11 @@ class CursorManager {
 
     private(set) var isHighlightActive = false
     private(set) var isSpotlightActive = false
+    private(set) var isZoomActive = false
 
     private var highlightWindow: CursorHighlightWindow?
     private var spotlightWindow: SpotlightWindow?
+    private var zoomWindow: ZoomWindow?
     private var mouseMonitor: Any?
 
     private let settings = SettingsManager.shared
@@ -71,6 +73,31 @@ class CursorManager {
         updateMouseMonitoring()
     }
 
+    // MARK: - Zoom
+
+    func toggleZoom() {
+        if isZoomActive {
+            deactivateZoom()
+        } else {
+            activateZoom()
+        }
+    }
+
+    private func activateZoom() {
+        if zoomWindow == nil {
+            zoomWindow = ZoomWindow()
+        }
+        zoomWindow?.show()
+        isZoomActive = true
+        ensureMouseMonitoring()
+    }
+
+    private func deactivateZoom() {
+        zoomWindow?.hide()
+        isZoomActive = false
+        updateMouseMonitoring()
+    }
+
     // MARK: - Mouse Monitoring
 
     private func ensureMouseMonitoring() {
@@ -83,7 +110,7 @@ class CursorManager {
     }
 
     private func updateMouseMonitoring() {
-        if !isHighlightActive && !isSpotlightActive {
+        if !isHighlightActive && !isSpotlightActive && !isZoomActive {
             if let monitor = mouseMonitor {
                 NSEvent.removeMonitor(monitor)
                 mouseMonitor = nil
@@ -110,6 +137,10 @@ class CursorManager {
 
         if isSpotlightActive {
             spotlightWindow?.updatePosition(to: mouseLocation)
+        }
+
+        if isZoomActive {
+            zoomWindow?.updatePosition(to: mouseLocation)
         }
     }
 
