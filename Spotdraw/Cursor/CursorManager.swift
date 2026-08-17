@@ -118,7 +118,7 @@ import Cocoa
         mouseMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp]
         ) { [weak self] event in
-            self?.handleMouseEvent(event)
+            self?.routeMouseEvent(event)
         }
     }
 
@@ -131,7 +131,7 @@ import Cocoa
         }
     }
 
-    private func handleMouseEvent(_ event: NSEvent) {
+    private func routeMouseEvent(_ event: NSEvent) {
         let mouseLocation = NSEvent.mouseLocation
 
         if isHighlightActive {

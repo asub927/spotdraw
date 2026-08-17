@@ -118,12 +118,12 @@ import Cocoa
 
     private func createOverlayWindows() {
         for screen in NSScreen.screens {
-            let window = createOverlayWindow(for: screen)
+            let window = makeOverlayWindow(for: screen)
             overlayWindows.append(window)
         }
     }
 
-    private func createOverlayWindow(for screen: NSScreen) -> NSWindow {
+    private func makeOverlayWindow(for screen: NSScreen) -> NSWindow {
         let window = NSWindow(
             contentRect: screen.frame,
             styleMask: .borderless,

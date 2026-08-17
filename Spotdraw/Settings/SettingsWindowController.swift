@@ -44,6 +44,29 @@ import SwiftUI
     }
 }
 
+// MARK: - Color Presets
+
+/// Shared color preset definitions used across settings tabs.
+internal enum ColorPresets {
+    /// Annotation stroke color presets (default: red).
+    static let annotation: [(name: String, color: NSColor)] = [
+        ("Red", .systemRed),
+        ("Blue", .systemBlue),
+        ("Green", .systemGreen),
+        ("Yellow", .systemYellow),
+        ("White", .white)
+    ]
+
+    /// Cursor highlight color presets (default: yellow).
+    static let cursor: [(name: String, color: NSColor)] = [
+        ("Yellow", .systemYellow),
+        ("Red", .systemRed),
+        ("Blue", .systemBlue),
+        ("Green", .systemGreen),
+        ("White", .white)
+    ]
+}
+
 // MARK: - SettingsView
 
 internal struct SettingsView: View {
@@ -72,6 +95,8 @@ internal struct SettingsView: View {
 // MARK: - General Tab
 
 internal struct GeneralSettingsTab: View {
+    // @State properties are initialized as snapshots from SettingsManager.shared.
+    // Changes are written back via .onChange but external changes are not synced back.
     @State private var fadeDuration: Double = SettingsManager.shared.fadeDuration
     @State private var launchAtLogin: Bool = false
 
@@ -81,13 +106,14 @@ internal struct GeneralSettingsTab: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Fade Duration:")
+                        // Fade duration: 1–10s (1s for visual feedback, 10s before annotations become stale)
                         Slider(value: $fadeDuration, in: 1...10, step: 0.5) {
                             Text("Fade Duration")
                         }
                         Text("\(fadeDuration, specifier: "%.1f")s")
                             .frame(width: 40)
                     }
-                    .onChange(of: fadeDuration) { newValue in
+                    .onChangeCompat(of: fadeDuration) { newValue in
                         SettingsManager.shared.fadeDuration = newValue
                     }
 
@@ -102,16 +128,10 @@ internal struct GeneralSettingsTab: View {
 // MARK: - Annotation Tab
 
 internal struct AnnotationSettingsTab: View {
+    // @State properties are initialized as snapshots from SettingsManager.shared.
+    // Changes are written back via .onChange but external changes are not synced back.
     @State private var strokeWidth: Double = Double(SettingsManager.shared.strokeWidth)
     @State private var selectedColorIndex: Int = 0
-
-    private let colorPresets: [(String, NSColor)] = [
-        ("Red", .systemRed),
-        ("Blue", .systemBlue),
-        ("Green", .systemGreen),
-        ("Yellow", .systemYellow),
-        ("White", .white)
-    ]
 
     var body: some View {
         Form {
@@ -119,13 +139,13 @@ internal struct AnnotationSettingsTab: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Color Presets:")
                     HStack(spacing: 8) {
-                        ForEach(0..<5, id: \.self) { index in
+                        ForEach(0..<ColorPresets.annotation.count, id: \.self) { index in
                             Button(action: {
                                 selectedColorIndex = index
-                                SettingsManager.shared.strokeColor = colorPresets[index].1
+                                SettingsManager.shared.strokeColor = ColorPresets.annotation[index].color
                             }) {
                                 Circle()
-                                    .fill(Color(nsColor: colorPresets[index].1))
+                                    .fill(Color(nsColor: ColorPresets.annotation[index].color))
                                     .frame(width: 28, height: 28)
                                     .overlay(
                                         Circle()
@@ -133,19 +153,20 @@ internal struct AnnotationSettingsTab: View {
                                     )
                             }
                             .buttonStyle(.plain)
-                            .help(colorPresets[index].0)
+                            .help(ColorPresets.annotation[index].name)
                         }
                     }
 
                     HStack {
                         Text("Stroke Width:")
+                        // Stroke width: 1–20pt (1pt minimum for fine detail, 20pt max avoids obscuring content)
                         Slider(value: $strokeWidth, in: 1...20, step: 1) {
                             Text("Stroke Width")
                         }
                         Text("\(Int(strokeWidth))")
                             .frame(width: 30)
                     }
-                    .onChange(of: strokeWidth) { newValue in
+                    .onChangeCompat(of: strokeWidth) { newValue in
                         SettingsManager.shared.strokeWidth = CGFloat(newValue)
                     }
                 }
@@ -158,17 +179,11 @@ internal struct AnnotationSettingsTab: View {
 // MARK: - Cursor Tab
 
 internal struct CursorSettingsTab: View {
+    // @State properties are initialized as snapshots from SettingsManager.shared.
+    // Changes are written back via .onChange but external changes are not synced back.
     @State private var highlightSize: Double = Double(SettingsManager.shared.highlightSize)
     @State private var highlightOpacity: Double = Double(SettingsManager.shared.highlightOpacity)
     @State private var selectedColorIndex: Int = 0
-
-    private let colorPresets: [(String, NSColor)] = [
-        ("Yellow", .systemYellow),
-        ("Red", .systemRed),
-        ("Blue", .systemBlue),
-        ("Green", .systemGreen),
-        ("White", .white)
-    ]
 
     var body: some View {
         Form {
@@ -176,13 +191,13 @@ internal struct CursorSettingsTab: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Highlight Color:")
                     HStack(spacing: 8) {
-                        ForEach(0..<5, id: \.self) { index in
+                        ForEach(0..<ColorPresets.cursor.count, id: \.self) { index in
                             Button(action: {
                                 selectedColorIndex = index
-                                SettingsManager.shared.highlightColor = colorPresets[index].1
+                                SettingsManager.shared.highlightColor = ColorPresets.cursor[index].color
                             }) {
                                 Circle()
-                                    .fill(Color(nsColor: colorPresets[index].1))
+                                    .fill(Color(nsColor: ColorPresets.cursor[index].color))
                                     .frame(width: 28, height: 28)
                                     .overlay(
                                         Circle()
@@ -190,31 +205,33 @@ internal struct CursorSettingsTab: View {
                                     )
                             }
                             .buttonStyle(.plain)
-                            .help(colorPresets[index].0)
+                            .help(ColorPresets.cursor[index].name)
                         }
                     }
 
                     HStack {
                         Text("Size:")
+                        // Highlight size: 20–100pt radius (20pt for visibility, 100pt proportional to cursor)
                         Slider(value: $highlightSize, in: 20...100, step: 5) {
                             Text("Size")
                         }
                         Text("\(Int(highlightSize))")
                             .frame(width: 30)
                     }
-                    .onChange(of: highlightSize) { newValue in
+                    .onChangeCompat(of: highlightSize) { newValue in
                         SettingsManager.shared.highlightSize = CGFloat(newValue)
                     }
 
                     HStack {
                         Text("Opacity:")
+                        // Opacity: 0.1–1.0 alpha (0.1 minimum ensures highlight remains visible)
                         Slider(value: $highlightOpacity, in: 0.1...1.0, step: 0.05) {
                             Text("Opacity")
                         }
                         Text("\(highlightOpacity, specifier: "%.2f")")
                             .frame(width: 40)
                     }
-                    .onChange(of: highlightOpacity) { newValue in
+                    .onChangeCompat(of: highlightOpacity) { newValue in
                         SettingsManager.shared.highlightOpacity = CGFloat(newValue)
                     }
                 }
@@ -227,6 +244,8 @@ internal struct CursorSettingsTab: View {
 // MARK: - Spotlight Tab
 
 internal struct SpotlightSettingsTab: View {
+    // @State properties are initialized as snapshots from SettingsManager.shared.
+    // Changes are written back via .onChange but external changes are not synced back.
     @State private var spotlightSize: Double = Double(SettingsManager.shared.spotlightSize)
     @State private var dimIntensity: Double = Double(SettingsManager.shared.spotlightDimIntensity)
 
@@ -236,25 +255,27 @@ internal struct SpotlightSettingsTab: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Spotlight Size:")
+                        // Spotlight size: 50–300pt diameter (50pt usable area, 300pt for large UI elements)
                         Slider(value: $spotlightSize, in: 50...300, step: 10) {
                             Text("Spotlight Size")
                         }
                         Text("\(Int(spotlightSize))")
                             .frame(width: 40)
                     }
-                    .onChange(of: spotlightSize) { newValue in
+                    .onChangeCompat(of: spotlightSize) { newValue in
                         SettingsManager.shared.spotlightSize = CGFloat(newValue)
                     }
 
                     HStack {
                         Text("Dim Intensity:")
+                        // Dim intensity: 0.3–0.9 alpha (below 0.3 imperceptible, above 0.9 hides content)
                         Slider(value: $dimIntensity, in: 0.3...0.9, step: 0.05) {
                             Text("Dim Intensity")
                         }
                         Text("\(dimIntensity, specifier: "%.2f")")
                             .frame(width: 40)
                     }
-                    .onChange(of: dimIntensity) { newValue in
+                    .onChangeCompat(of: dimIntensity) { newValue in
                         SettingsManager.shared.spotlightDimIntensity = CGFloat(newValue)
                     }
                 }
