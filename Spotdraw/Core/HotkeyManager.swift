@@ -1,18 +1,18 @@
 // HotkeyManager.swift
 // Global and local keyboard event monitors for shortcut registration and dispatch.
 // Defines the GlobalShortcut enum mapping features to key codes and modifier flags,
-// and provides the HotkeyManager class that installs NSEvent monitors and routes
-// matching key-down events to registered handler closures.
+// and provides the HotkeyManager class that installs a CGEvent tap to intercept
+// and consume matching key-down events before they reach other applications.
 
 import Cocoa
 
 // MARK: - GlobalShortcut
 
 internal enum GlobalShortcut {
-    case toggleAnnotation   // Ctrl+D
+    case toggleAnnotation       // Ctrl+D
     case toggleCursorHighlight  // Ctrl+S
-    case toggleSpotlight    // Ctrl+L
-    case toggleZoom         // Ctrl+Z
+    case toggleSpotlight        // Ctrl+L
+    case toggleZoom             // Ctrl+Z
 
     var keyCode: UInt16 {
         switch self {
@@ -24,6 +24,14 @@ internal enum GlobalShortcut {
     }
 
     var modifiers: NSEvent.ModifierFlags { .control }
+
+    /// CGEventFlags equivalent of the NSEvent modifier flags.
+    var cgEventFlags: CGEventFlags {
+        switch self {
+        case .toggleAnnotation, .toggleCursorHighlight, .toggleSpotlight, .toggleZoom:
+            return .maskControl
+        }
+    }
 }
 
 // MARK: - HotkeyManager
@@ -35,14 +43,20 @@ internal enum GlobalShortcut {
     private typealias ShortcutHandler = () -> Void
     private typealias EventMonitorToken = Any
 
-    private var globalMonitor: EventMonitorToken?
+    private var eventTap: CFMachPort?
+    private var runLoopSource: CFRunLoopSource?
     private var localMonitor: EventMonitorToken?
     private var handlers: [GlobalShortcut: ShortcutHandler] = [:]
+
+    /// Static reference needed for the C callback (cannot capture context).
+    private nonisolated(unsafe) static var shared: HotkeyManager?
 
     // MARK: - Init
 
     init() {
-        setupMonitors()
+        HotkeyManager.shared = self
+        setupEventTap()
+        setupLocalMonitor()
     }
 
     // MARK: - Registration
@@ -52,29 +66,94 @@ internal enum GlobalShortcut {
         handlers[shortcut] = handler
     }
 
-    // MARK: - Monitor Setup
+    // MARK: - CGEvent Tap Setup
 
-    private func setupMonitors() {
-        // NSEvent monitor callbacks are dispatched on the main thread.
-        // The @MainActor annotation on HotkeyManager ensures the compiler
-        // verifies this isolation at Swift 6 language mode.
-        if AXIsProcessTrusted() {
-            globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                self?.handleKeyEvent(event)
-            }
-        } else {
-            NSLog("[HotkeyManager] Accessibility permission not granted — skipping global monitor registration. Global shortcuts will not work outside the app.")
+    private func setupEventTap() {
+        guard AXIsProcessTrusted() else {
+            NSLog("[HotkeyManager] Accessibility permission not granted — skipping CGEvent tap. Global shortcuts will not work.")
+            return
         }
 
+        // Create a CGEvent tap that intercepts keyDown events at the session level.
+        // Using .defaultTap allows us to modify or consume events (return nil).
+        let eventMask = (1 << CGEventType.keyDown.rawValue)
+
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: CGEventMask(eventMask),
+            callback: HotkeyManager.eventTapCallback,
+            userInfo: nil
+        ) else {
+            NSLog("[HotkeyManager] Failed to create CGEvent tap. Global shortcuts will not work.")
+            return
+        }
+
+        eventTap = tap
+
+        // Add the tap to the main run loop so events are processed on the main thread.
+        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        runLoopSource = source
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+
+        // Enable the tap.
+        CGEvent.tapEnable(tap: tap, enable: true)
+    }
+
+    // MARK: - Event Tap Callback
+
+    /// C-compatible callback for the CGEvent tap.
+    /// Returns nil to consume the event (preventing other apps from receiving it),
+    /// or returns the event unchanged to pass it through.
+    private static let eventTapCallback: CGEventTapCallBack = { proxy, type, event, userInfo in
+        // Handle tap being disabled by the system (e.g., if the callback is too slow).
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let shared = HotkeyManager.shared, let tap = shared.eventTap {
+                CGEvent.tapEnable(tap: tap, enable: true)
+            }
+            return Unmanaged.passRetained(event)
+        }
+
+        guard type == .keyDown else {
+            return Unmanaged.passRetained(event)
+        }
+
+        let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+        let flags = event.flags
+
+        guard let shared = HotkeyManager.shared else {
+            return Unmanaged.passRetained(event)
+        }
+
+        // Check if this event matches any registered shortcut.
+        for (shortcut, handler) in shared.handlers {
+            if keyCode == shortcut.keyCode && flags.contains(shortcut.cgEventFlags) {
+                // Match found — dispatch handler on main thread and consume the event.
+                DispatchQueue.main.async {
+                    handler()
+                }
+                return nil
+            }
+        }
+
+        // No match — pass event through to other apps unchanged.
+        return Unmanaged.passRetained(event)
+    }
+
+    // MARK: - Local Monitor
+
+    /// Keeps a local NSEvent monitor for when SpotDraw itself has focus
+    /// (e.g., the overlay is active). This ensures shortcuts work regardless
+    /// of whether the CGEvent tap processes them first.
+    private func setupLocalMonitor() {
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.handleKeyEvent(event)
+            self?.handleLocalKeyEvent(event)
             return event
         }
     }
 
-    // MARK: - Event Handling
-
-    private func handleKeyEvent(_ event: NSEvent) {
+    private func handleLocalKeyEvent(_ event: NSEvent) {
         for (shortcut, handler) in handlers {
             if event.keyCode == shortcut.keyCode &&
                event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(shortcut.modifiers) {
@@ -86,24 +165,35 @@ internal enum GlobalShortcut {
 
     // MARK: - Cleanup
 
-    /// Removes both global and local event monitors and clears their references.
+    /// Disables the CGEvent tap, removes the run loop source, and removes the local monitor.
     func removeAllMonitors() {
-        if let monitor = globalMonitor {
-            NSEvent.removeMonitor(monitor)
-            globalMonitor = nil
+        if let tap = eventTap {
+            CGEvent.tapEnable(tap: tap, enable: false)
         }
+        if let source = runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+        }
+        eventTap = nil
+        runLoopSource = nil
+
         if let monitor = localMonitor {
             NSEvent.removeMonitor(monitor)
             localMonitor = nil
         }
+
+        HotkeyManager.shared = nil
     }
 
     deinit {
-        if let monitor = globalMonitor {
-            NSEvent.removeMonitor(monitor)
+        if let tap = eventTap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+        }
+        if let source = runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
         }
         if let monitor = localMonitor {
             NSEvent.removeMonitor(monitor)
         }
+        HotkeyManager.shared = nil
     }
 }

@@ -54,6 +54,35 @@ internal enum BoardMode: Equatable {
 // but BoardMode instances are created and used exclusively on the main thread.
 extension BoardMode: @unchecked Sendable {}
 
+// MARK: - ColorShortcut
+
+/// Maps number keys to stroke color presets for quick switching during annotation.
+internal enum ColorShortcut: CaseIterable {
+    case red, blue, green, yellow, white
+
+    /// The keyboard character that activates this color.
+    var keyCharacter: String {
+        switch self {
+        case .red: "1"
+        case .blue: "2"
+        case .green: "3"
+        case .yellow: "4"
+        case .white: "5"
+        }
+    }
+
+    /// The NSColor associated with this shortcut.
+    var color: NSColor {
+        switch self {
+        case .red: .systemRed
+        case .blue: .systemBlue
+        case .green: .systemGreen
+        case .yellow: .systemYellow
+        case .white: .white
+        }
+    }
+}
+
 // MARK: - DrawingItem Protocol
 
 /// A drawable annotation element that can be rendered, hit-tested, and faded over time.

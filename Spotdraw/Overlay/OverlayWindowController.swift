@@ -6,6 +6,16 @@
 
 import Cocoa
 
+// MARK: - KeyableWindow
+
+/// Custom NSWindow subclass that allows borderless windows to become key.
+/// Required because borderless windows return false from canBecomeKey by default,
+/// which prevents them from receiving keyboard events.
+private final class KeyableWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 // MARK: - OverlayWindowController
 
 @MainActor internal final class OverlayWindowController {
@@ -57,6 +67,11 @@ import Cocoa
         if overlayWindows.isEmpty {
             createOverlayWindows()
         }
+
+        // Activate the app so overlay windows can become key and receive keyboard events.
+        // Without this, menu bar apps remain in the background and windows don't get focus.
+        NSApp.activate(ignoringOtherApps: true)
+
         overlayWindows.forEach { window in
             window.ignoresMouseEvents = false
             window.makeKeyAndOrderFront(nil)
@@ -124,7 +139,7 @@ import Cocoa
     }
 
     private func makeOverlayWindow(for screen: NSScreen) -> NSWindow {
-        let window = NSWindow(
+        let window = KeyableWindow(
             contentRect: screen.frame,
             styleMask: .borderless,
             backing: .buffered,

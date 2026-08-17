@@ -54,6 +54,12 @@ import Cocoa
         menuBarController.onOpenSettings = { [weak self] in
             self?.settingsWindowController.showWindow()
         }
+        menuBarController.onSelectTool = { [weak self] tool in
+            self?.overlayController.setTool(tool)
+        }
+        menuBarController.onSelectColor = { [weak self] color in
+            self?.overlayController.setColor(color)
+        }
     }
 
     private func setupOverlay() {

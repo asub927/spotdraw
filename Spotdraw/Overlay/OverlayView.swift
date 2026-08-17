@@ -313,6 +313,8 @@ import Cocoa
         default:
             if let tool = ToolType.allCases.first(where: { $0.keyCharacter == characters }) {
                 drawingState.activeTool = tool
+            } else if let colorShortcut = ColorShortcut.allCases.first(where: { $0.keyCharacter == characters }) {
+                drawingState.activeColor = colorShortcut.color
             } else {
                 super.keyDown(with: event)
             }

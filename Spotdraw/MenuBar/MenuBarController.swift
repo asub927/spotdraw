@@ -19,6 +19,8 @@ import Cocoa
     private let onClearAll: () -> Void
     private let onQuit: () -> Void
     var onOpenSettings: (() -> Void)?
+    var onSelectTool: ((ToolType) -> Void)?
+    var onSelectColor: ((NSColor) -> Void)?
 
     private var annotationMenuItem: NSMenuItem!
     private var cursorMenuItem: NSMenuItem!
@@ -179,8 +181,18 @@ import Cocoa
 
     @objc private func selectToolAction(_ sender: NSMenuItem) {
         guard let toolName = sender.representedObject as? String else { return }
-        // Tool selection is communicated via notification for loose coupling
-        NotificationCenter.default.post(name: .toolDidChange, object: nil, userInfo: ["tool": toolName])
+        let toolMap: [String: ToolType] = [
+            "Pen": .pen,
+            "Arrow": .arrow,
+            "Rectangle": .rectangle,
+            "Circle": .circle,
+            "Line": .line,
+            "Highlighter": .highlighter,
+            "Eraser": .eraser
+        ]
+        if let tool = toolMap[toolName] {
+            onSelectTool?(tool)
+        }
     }
 
     @objc private func selectColorAction(_ sender: NSMenuItem) {
@@ -194,6 +206,7 @@ import Cocoa
         ]
         if let color = colorMap[colorName] {
             SettingsManager.shared.strokeColor = color
+            onSelectColor?(color)
         }
     }
 
@@ -202,8 +215,3 @@ import Cocoa
     }
 }
 
-// MARK: - Notification Names
-
-extension Notification.Name {
-    static let toolDidChange = Notification.Name("com.spotdraw.toolDidChange")
-}
