@@ -32,9 +32,12 @@ internal final class HotkeyManager {
 
     // MARK: - Properties
 
-    private var globalMonitor: Any?
-    private var localMonitor: Any?
-    private var handlers: [GlobalShortcut: () -> Void] = [:]
+    private typealias ShortcutHandler = () -> Void
+    private typealias EventMonitorToken = Any
+
+    private var globalMonitor: EventMonitorToken?
+    private var localMonitor: EventMonitorToken?
+    private var handlers: [GlobalShortcut: ShortcutHandler] = [:]
 
     // MARK: - Init
 

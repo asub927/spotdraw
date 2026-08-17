@@ -204,5 +204,7 @@ internal final class OverlayWindowController {
         if let observer = screenObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        overlayWindows.forEach { $0.close() }
+        overlayWindows.removeAll()
     }
 }

@@ -11,6 +11,8 @@ internal final class CursorManager {
 
     // MARK: - Properties
 
+    private typealias EventMonitorToken = Any
+
     private(set) var isHighlightActive = false
     private(set) var isSpotlightActive = false
     private(set) var isZoomActive = false
@@ -18,7 +20,7 @@ internal final class CursorManager {
     private var highlightWindow: CursorHighlightWindow?
     private var spotlightWindow: SpotlightWindow?
     private var zoomWindow: ZoomWindow?
-    private var mouseMonitor: Any?
+    private var mouseMonitor: EventMonitorToken?
 
     private let settings = SettingsManager.shared
 

@@ -94,6 +94,8 @@ internal final class ZoomWindow {
         self.borderLayer = borderLayer
     }
 
+    // MARK: - Private Methods
+
     private func resizeWindow() {
         guard let window, let imageView, let borderLayer else { return }
 

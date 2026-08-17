@@ -39,6 +39,16 @@ internal final class OverlayView: NSView {
         startFadeTimer()
     }
 
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            fadeTimer?.invalidate()
+            fadeTimer = nil
+        } else if fadeTimer == nil {
+            startFadeTimer()
+        }
+    }
+
     // MARK: - Drawing
 
     override func draw(_ dirtyRect: NSRect) {
@@ -99,36 +109,9 @@ internal final class OverlayView: NSView {
 
     private func drawCurrentStroke(in context: CGContext) {
         guard currentPoints.count > 1 else { return }
-
-        let path = CGMutablePath()
-        let smoothed = smoothPoints(currentPoints)
-
-        guard smoothed.count > 1 else { return }
-
-        path.move(to: smoothed[0])
-        for i in 1..<smoothed.count {
-            if i < smoothed.count - 1 {
-                let mid = CGPoint(
-                    x: (smoothed[i].x + smoothed[i + 1].x) / 2,
-                    y: (smoothed[i].y + smoothed[i + 1].y) / 2
-                )
-                path.addQuadCurve(to: mid, control: smoothed[i])
-            } else {
-                path.addLine(to: smoothed[i])
-            }
-        }
-
-        context.saveGState()
         let alpha: CGFloat = drawingState.activeTool == .highlighter ? 0.3 : 1.0
         let width = drawingState.activeTool == .highlighter ? drawingState.activeLineWidth * 4 : drawingState.activeLineWidth
-        context.setAlpha(alpha)
-        context.setStrokeColor(drawingState.activeColor.cgColor)
-        context.setLineWidth(width)
-        context.setLineCap(.round)
-        context.setLineJoin(.round)
-        context.addPath(path)
-        context.strokePath()
-        context.restoreGState()
+        DrawingRenderer.drawStroke(points: currentPoints, color: drawingState.activeColor, lineWidth: width, alpha: alpha, in: context)
     }
 
     private func drawCurrentArrow(in context: CGContext) {
@@ -136,50 +119,30 @@ internal final class OverlayView: NSView {
         var end = currentShapeEndPoint
 
         if isShiftHeld {
-            end = constrainToAngles(from: start, to: end)
+            end = DrawingRenderer.constrainToAngles(from: start, to: end)
         }
 
-        context.saveGState()
-        context.setStrokeColor(drawingState.activeColor.cgColor)
-        context.setLineWidth(drawingState.activeLineWidth)
-        context.setLineCap(.round)
-
-        // Draw line
-        context.move(to: start)
-        context.addLine(to: end)
-        context.strokePath()
-
-        // Draw arrowhead
-        drawArrowhead(in: context, from: start, to: end)
-        context.restoreGState()
+        DrawingRenderer.drawArrow(from: start, to: end, color: drawingState.activeColor, lineWidth: drawingState.activeLineWidth, in: context)
     }
 
     private func drawCurrentRect(in context: CGContext) {
-        var rect = rectFrom(start: shapeStartPoint, end: currentShapeEndPoint)
+        var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: currentShapeEndPoint)
         if isShiftHeld {
             let side = max(rect.width, rect.height)
             rect.size = CGSize(width: side, height: side)
         }
 
-        context.saveGState()
-        context.setStrokeColor(drawingState.activeColor.cgColor)
-        context.setLineWidth(drawingState.activeLineWidth)
-        context.stroke(rect)
-        context.restoreGState()
+        DrawingRenderer.drawRectangle(rect, color: drawingState.activeColor, lineWidth: drawingState.activeLineWidth, in: context)
     }
 
     private func drawCurrentCircle(in context: CGContext) {
-        var rect = rectFrom(start: shapeStartPoint, end: currentShapeEndPoint)
+        var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: currentShapeEndPoint)
         if isShiftHeld {
             let side = max(rect.width, rect.height)
             rect.size = CGSize(width: side, height: side)
         }
 
-        context.saveGState()
-        context.setStrokeColor(drawingState.activeColor.cgColor)
-        context.setLineWidth(drawingState.activeLineWidth)
-        context.strokeEllipse(in: rect)
-        context.restoreGState()
+        DrawingRenderer.drawCircle(in: rect, color: drawingState.activeColor, lineWidth: drawingState.activeLineWidth, in: context)
     }
 
     private func drawCurrentLine(in context: CGContext) {
@@ -187,17 +150,10 @@ internal final class OverlayView: NSView {
         var end = currentShapeEndPoint
 
         if isShiftHeld {
-            end = constrainToAngles(from: start, to: end)
+            end = DrawingRenderer.constrainToAngles(from: start, to: end)
         }
 
-        context.saveGState()
-        context.setStrokeColor(drawingState.activeColor.cgColor)
-        context.setLineWidth(drawingState.activeLineWidth)
-        context.setLineCap(.round)
-        context.move(to: start)
-        context.addLine(to: end)
-        context.strokePath()
-        context.restoreGState()
+        DrawingRenderer.drawLine(from: start, to: end, color: drawingState.activeColor, lineWidth: drawingState.activeLineWidth, in: context)
     }
 
     // MARK: - Mouse Events
@@ -245,7 +201,7 @@ internal final class OverlayView: NSView {
             currentPoints.append(point)
             if currentPoints.count > 1 {
                 let stroke = FreehandStroke(
-                    points: smoothPoints(currentPoints),
+                    points: DrawingRenderer.smoothPoints(currentPoints),
                     color: drawingState.activeColor,
                     lineWidth: drawingState.activeLineWidth
                 )
@@ -257,7 +213,7 @@ internal final class OverlayView: NSView {
             currentPoints.append(point)
             if currentPoints.count > 1 {
                 let stroke = FreehandStroke(
-                    points: smoothPoints(currentPoints),
+                    points: DrawingRenderer.smoothPoints(currentPoints),
                     color: drawingState.activeColor,
                     lineWidth: drawingState.activeLineWidth * 4,
                     alpha: 0.3
@@ -268,7 +224,7 @@ internal final class OverlayView: NSView {
 
         case .arrow:
             var end = point
-            if isShiftHeld { end = constrainToAngles(from: shapeStartPoint, to: end) }
+            if isShiftHeld { end = DrawingRenderer.constrainToAngles(from: shapeStartPoint, to: end) }
             let arrow = ArrowShape(
                 start: shapeStartPoint,
                 end: end,
@@ -278,7 +234,7 @@ internal final class OverlayView: NSView {
             drawingState.addItem(arrow)
 
         case .rectangle:
-            var rect = rectFrom(start: shapeStartPoint, end: point)
+            var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: point)
             if isShiftHeld {
                 let side = max(rect.width, rect.height)
                 rect.size = CGSize(width: side, height: side)
@@ -291,7 +247,7 @@ internal final class OverlayView: NSView {
             drawingState.addItem(shape)
 
         case .circle:
-            var rect = rectFrom(start: shapeStartPoint, end: point)
+            var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: point)
             if isShiftHeld {
                 let side = max(rect.width, rect.height)
                 rect.size = CGSize(width: side, height: side)
@@ -305,7 +261,7 @@ internal final class OverlayView: NSView {
 
         case .line:
             var end = point
-            if isShiftHeld { end = constrainToAngles(from: shapeStartPoint, to: end) }
+            if isShiftHeld { end = DrawingRenderer.constrainToAngles(from: shapeStartPoint, to: end) }
             let shape = LineShape(
                 start: shapeStartPoint,
                 end: end,
@@ -416,76 +372,6 @@ internal final class OverlayView: NSView {
         if needsRedraw {
             needsDisplay = true
         }
-    }
-
-    // MARK: - Geometry Helpers
-
-    // Point smoothing using weighted average: each interior point is replaced by
-    // (prev + 2*curr + next) / 4, producing a smoother curve without shifting endpoints.
-    private func smoothPoints(_ points: [CGPoint]) -> [CGPoint] {
-        guard points.count > 2 else { return points }
-
-        var smoothed: [CGPoint] = [points[0]]
-
-        for i in 1..<(points.count - 1) {
-            let prev = points[i - 1]
-            let curr = points[i]
-            let next = points[i + 1]
-
-            let smoothX = (prev.x + curr.x * 2 + next.x) / 4.0
-            let smoothY = (prev.y + curr.y * 2 + next.y) / 4.0
-            smoothed.append(CGPoint(x: smoothX, y: smoothY))
-        }
-
-        if let lastPoint = points.last {
-            smoothed.append(lastPoint)
-        }
-        return smoothed
-    }
-
-    private func constrainToAngles(from start: CGPoint, to end: CGPoint) -> CGPoint {
-        let dx = end.x - start.x
-        let dy = end.y - start.y
-        let angle = atan2(dy, dx)
-        let distance = sqrt(dx * dx + dy * dy)
-
-        // Snap to nearest 45° angle
-        let snappedAngle = round(angle / (.pi / 4)) * (.pi / 4)
-        return CGPoint(
-            x: start.x + distance * cos(snappedAngle),
-            y: start.y + distance * sin(snappedAngle)
-        )
-    }
-
-    private func rectFrom(start: CGPoint, end: CGPoint) -> CGRect {
-        let x = Swift.min(start.x, end.x)
-        let y = Swift.min(start.y, end.y)
-        let width = abs(end.x - start.x)
-        let height = abs(end.y - start.y)
-        return CGRect(x: x, y: y, width: width, height: height)
-    }
-
-    private func drawArrowhead(in context: CGContext, from start: CGPoint, to end: CGPoint) {
-        let headLength: CGFloat = drawingState.activeLineWidth * 4
-        let headAngle: CGFloat = .pi / 6
-
-        let angle = atan2(end.y - start.y, end.x - start.x)
-
-        let point1 = CGPoint(
-            x: end.x - headLength * cos(angle - headAngle),
-            y: end.y - headLength * sin(angle - headAngle)
-        )
-        let point2 = CGPoint(
-            x: end.x - headLength * cos(angle + headAngle),
-            y: end.y - headLength * sin(angle + headAngle)
-        )
-
-        context.setFillColor(drawingState.activeColor.cgColor)
-        context.move(to: end)
-        context.addLine(to: point1)
-        context.addLine(to: point2)
-        context.closePath()
-        context.fillPath()
     }
 
     // MARK: - Cleanup
