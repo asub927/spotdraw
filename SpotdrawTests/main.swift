@@ -8,4 +8,6 @@ runAllPreservationTests()
 
 // Run bug condition exploration tests (these are expected to FAIL on unfixed code)
 // Note: runAllTests() calls exit() internally based on results
-runAllTests()
+MainActor.assumeIsolated {
+    runAllTests()
+}

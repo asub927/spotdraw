@@ -8,7 +8,7 @@ import Cocoa
 
 // MARK: - SpotlightWindow
 
-internal final class SpotlightWindow {
+@MainActor internal final class SpotlightWindow {
 
     // MARK: - Properties
 
@@ -76,7 +76,7 @@ internal final class SpotlightWindow {
 
 // MARK: - SpotlightView
 
-internal final class SpotlightView: NSView {
+@MainActor internal final class SpotlightView: NSView {
 
     // MARK: - Properties
 

@@ -8,7 +8,7 @@ import Cocoa
 
 // MARK: - OverlayView
 
-internal final class OverlayView: NSView {
+@MainActor internal final class OverlayView: NSView {
 
     // MARK: - Properties
 
@@ -343,6 +343,7 @@ internal final class OverlayView: NSView {
     // MARK: - Fade Timer
 
     private func startFadeTimer() {
+        // Timer scheduled on the main run loop; callback executes on the main thread.
         fadeTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.processFade()
         }

@@ -7,7 +7,7 @@ import Cocoa
 
 // MARK: - CursorManager
 
-internal final class CursorManager {
+@MainActor internal final class CursorManager {
 
     // MARK: - Properties
 
@@ -112,6 +112,9 @@ internal final class CursorManager {
 
     private func ensureMouseMonitoring() {
         guard mouseMonitor == nil else { return }
+        // NSEvent monitor callbacks are dispatched on the main thread.
+        // The @MainActor annotation on CursorManager ensures the compiler
+        // verifies this isolation at Swift 6 language mode.
         mouseMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp]
         ) { [weak self] event in

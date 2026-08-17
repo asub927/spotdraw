@@ -8,11 +8,11 @@ import Cocoa
 
 // MARK: - SettingsManager
 
-internal final class SettingsManager {
+@MainActor internal final class SettingsManager {
 
     // MARK: - Singleton
 
-    static let shared = SettingsManager()
+    nonisolated(unsafe) static let shared = SettingsManager()
 
     // MARK: - Keys
 
@@ -108,11 +108,11 @@ internal final class SettingsManager {
 
     // MARK: - Init
 
-    private init() {
+    private nonisolated init() {
         registerDefaults()
     }
 
-    private func registerDefaults() {
+    private nonisolated func registerDefaults() {
         UserDefaults.standard.register(defaults: [
             Keys.strokeWidth: 3.0,
             Keys.highlightSize: 40.0,

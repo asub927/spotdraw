@@ -9,7 +9,7 @@ import SwiftUI
 
 // MARK: - SettingsWindowController
 
-internal final class SettingsWindowController {
+@MainActor internal final class SettingsWindowController {
 
     // MARK: - Properties
 

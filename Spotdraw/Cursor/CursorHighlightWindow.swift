@@ -7,7 +7,7 @@ import Cocoa
 
 // MARK: - CursorHighlightWindow
 
-internal final class CursorHighlightWindow {
+@MainActor internal final class CursorHighlightWindow {
 
     // MARK: - Properties
 

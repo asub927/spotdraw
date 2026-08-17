@@ -28,7 +28,7 @@ internal enum GlobalShortcut {
 
 // MARK: - HotkeyManager
 
-internal final class HotkeyManager {
+@MainActor internal final class HotkeyManager {
 
     // MARK: - Properties
 
@@ -55,6 +55,9 @@ internal final class HotkeyManager {
     // MARK: - Monitor Setup
 
     private func setupMonitors() {
+        // NSEvent monitor callbacks are dispatched on the main thread.
+        // The @MainActor annotation on HotkeyManager ensures the compiler
+        // verifies this isolation at Swift 6 language mode.
         if AXIsProcessTrusted() {
             globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 self?.handleKeyEvent(event)
@@ -96,6 +99,11 @@ internal final class HotkeyManager {
     }
 
     deinit {
-        removeAllMonitors()
+        if let monitor = globalMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = localMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
     }
 }

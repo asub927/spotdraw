@@ -8,7 +8,7 @@ import Cocoa
 
 // MARK: - ZoomWindow
 
-internal final class ZoomWindow {
+@MainActor internal final class ZoomWindow {
 
     // MARK: - Properties
 
@@ -136,9 +136,14 @@ internal final class ZoomWindow {
 
     private func startCapture() {
         stopCapture()
-        // 30fps = ~0.033s interval
+        // Timer scheduled on the main run loop; callback executes on the main thread.
+        // MainActor.assumeIsolated is used because Timer's closure is not annotated as
+        // @MainActor by the SDK, but we know it runs on the main thread. This satisfies
+        // the compiler's isolation check at Swift 6 language mode.
         captureTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
-            self?.captureScreen()
+            MainActor.assumeIsolated {
+                self?.captureScreen()
+            }
         }
     }
 
@@ -182,6 +187,7 @@ internal final class ZoomWindow {
     // MARK: - Cleanup
 
     deinit {
-        stopCapture()
+        captureTimer?.invalidate()
+        captureTimer = nil
     }
 }

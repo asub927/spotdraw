@@ -8,7 +8,7 @@ import Cocoa
 
 // MARK: - OverlayWindowController
 
-internal final class OverlayWindowController {
+@MainActor internal final class OverlayWindowController {
 
     // MARK: - Properties
 

@@ -25,7 +25,7 @@ struct TestResult {
     let message: String
 }
 
-func runTest(_ name: String, _ body: () -> (Bool, String)) -> TestResult {
+@MainActor func runTest(_ name: String, _ body: () -> (Bool, String)) -> TestResult {
     print("  Running: \(name)...")
     let (passed, message) = body()
     let result = TestResult(name: name, passed: passed, message: message)
@@ -45,7 +45,7 @@ func runTest(_ name: String, _ body: () -> (Bool, String)) -> TestResult {
 ///                 AND globalMonitorCannotFire()`
 ///
 /// Tests the OverlayView key handling directly: Ctrl+D should trigger the onDeactivate callback.
-func testCtrlDDeactivatesOverlay() -> TestResult {
+@MainActor func testCtrlDDeactivatesOverlay() -> TestResult {
     return runTest("Test 1: Ctrl+D triggers onDeactivate callback on OverlayView") {
         // Create an OverlayView directly to test its key handling
         // This bypasses the controller's permission check which blocks in test environments
@@ -106,7 +106,7 @@ func testCtrlDDeactivatesOverlay() -> TestResult {
 ///                 AND escapeOnlyClearsDrawings()`
 ///
 /// Tests the OverlayView key handling directly: Escape should trigger the onDeactivate callback.
-func testEscapeDeactivatesOverlay() -> TestResult {
+@MainActor func testEscapeDeactivatesOverlay() -> TestResult {
     return runTest("Test 2: Escape triggers onDeactivate callback on OverlayView") {
         // Create an OverlayView directly to test its key handling
         let overlayView = OverlayView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
@@ -168,7 +168,7 @@ func testEscapeDeactivatesOverlay() -> TestResult {
 /// Tests that overlay windows created by the controller use `.floating` level (not `.screenSaver`).
 /// Since activate() is permission-gated, we verify by creating a window using the same code path
 /// that OverlayWindowController.createOverlayWindow uses and checking the level.
-func testWindowLevelAllowsMenuBarAccess() -> TestResult {
+@MainActor func testWindowLevelAllowsMenuBarAccess() -> TestResult {
     return runTest("Test 3: Window level allows menu bar and Dock access") {
         // Create a window mimicking OverlayWindowController.createOverlayWindow
         // to verify the window level constant used in the fixed code.
@@ -234,7 +234,7 @@ func testWindowLevelAllowsMenuBarAccess() -> TestResult {
 /// Bug Condition: `NOT accessibilityPermissionGranted() AND activation attempted`
 ///
 /// Tests that the controller's activate() method blocks when AXIsProcessTrusted() is false.
-func testActivationBlockedWithoutAccessibilityPermission() -> TestResult {
+@MainActor func testActivationBlockedWithoutAccessibilityPermission() -> TestResult {
     return runTest("Test 4: Activation blocked without accessibility permission") {
         let controller = OverlayWindowController()
 
@@ -287,7 +287,7 @@ extension OverlayWindowController {
 
 // MARK: - Test Runner
 
-func runAllTests() {
+@MainActor func runAllTests() {
     let separator = String(repeating: "=", count: 70)
 
     print(separator)

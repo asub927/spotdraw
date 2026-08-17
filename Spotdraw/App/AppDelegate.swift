@@ -8,7 +8,7 @@ import Cocoa
 
 // MARK: - AppDelegate
 
-internal final class AppDelegate: NSObject, NSApplicationDelegate {
+@MainActor internal final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Properties
 

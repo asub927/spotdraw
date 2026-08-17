@@ -7,7 +7,7 @@ import Cocoa
 
 // MARK: - ToolType
 
-internal enum ToolType: CaseIterable, Hashable {
+internal enum ToolType: CaseIterable, Hashable, Sendable {
     case pen
     case arrow
     case rectangle
@@ -49,6 +49,10 @@ internal enum BoardMode: Equatable {
         }
     }
 }
+
+// BoardMode uses @unchecked Sendable because NSColor is not Sendable,
+// but BoardMode instances are created and used exclusively on the main thread.
+extension BoardMode: @unchecked Sendable {}
 
 // MARK: - DrawingItem Protocol
 

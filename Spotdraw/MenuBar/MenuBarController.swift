@@ -8,7 +8,7 @@ import Cocoa
 
 // MARK: - MenuBarController
 
-internal final class MenuBarController {
+@MainActor internal final class MenuBarController {
 
     // MARK: - Properties
 
