@@ -1,8 +1,14 @@
+// OverlayView.swift
+// NSView subclass that handles mouse input for freehand drawing and shape creation,
+// processes keyboard shortcuts for tool switching and undo/redo, renders committed
+// drawing items and in-progress strokes via Core Graphics, and manages a fade timer
+// that gradually removes old annotations when fade mode is active.
+
 import Cocoa
 
 // MARK: - OverlayView
 
-class OverlayView: NSView {
+internal final class OverlayView: NSView {
 
     // MARK: - Properties
 
@@ -342,20 +348,6 @@ class OverlayView: NSView {
         case "z" where hasCommand:
             drawingState.undo()
             needsDisplay = true
-        case "p":
-            drawingState.activeTool = .pen
-        case "a":
-            drawingState.activeTool = .arrow
-        case "r":
-            drawingState.activeTool = .rectangle
-        case "o":
-            drawingState.activeTool = .circle
-        case "l":
-            drawingState.activeTool = .line
-        case "h":
-            drawingState.activeTool = .highlighter
-        case "e":
-            drawingState.activeTool = .eraser
         case "b":
             toggleBoard()
         case " ":
@@ -363,7 +355,11 @@ class OverlayView: NSView {
         case "\u{1B}": // Escape
             onDeactivate?()
         default:
-            super.keyDown(with: event)
+            if let tool = ToolType.allCases.first(where: { $0.keyCharacter == characters }) {
+                drawingState.activeTool = tool
+            } else {
+                super.keyDown(with: event)
+            }
         }
     }
 
@@ -384,16 +380,7 @@ class OverlayView: NSView {
     // MARK: - Board Toggle
 
     private func toggleBoard() {
-        switch drawingState.boardMode {
-        case .none:
-            drawingState.boardMode = .white
-        case .white:
-            drawingState.boardMode = .black
-        case .black:
-            drawingState.boardMode = .none
-        case .custom:
-            drawingState.boardMode = .none
-        }
+        drawingState.boardMode = drawingState.boardMode.next
         needsDisplay = true
     }
 
@@ -433,6 +420,8 @@ class OverlayView: NSView {
 
     // MARK: - Geometry Helpers
 
+    // Point smoothing using weighted average: each interior point is replaced by
+    // (prev + 2*curr + next) / 4, producing a smoother curve without shifting endpoints.
     private func smoothPoints(_ points: [CGPoint]) -> [CGPoint] {
         guard points.count > 2 else { return points }
 
@@ -448,7 +437,9 @@ class OverlayView: NSView {
             smoothed.append(CGPoint(x: smoothX, y: smoothY))
         }
 
-        smoothed.append(points.last!)
+        if let lastPoint = points.last {
+            smoothed.append(lastPoint)
+        }
         return smoothed
     }
 

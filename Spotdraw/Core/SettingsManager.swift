@@ -1,8 +1,14 @@
+// SettingsManager.swift
+// Persistent settings storage via UserDefaults with typed accessors.
+// Exposes annotation, cursor highlight, and spotlight preferences as
+// strongly-typed properties. Uses NSKeyedArchiver for NSColor storage.
+// Accessed as a singleton throughout the app.
+
 import Cocoa
 
 // MARK: - SettingsManager
 
-class SettingsManager {
+internal final class SettingsManager {
 
     // MARK: - Singleton
 

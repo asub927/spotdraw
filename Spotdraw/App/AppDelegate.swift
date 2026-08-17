@@ -1,8 +1,14 @@
+// AppDelegate.swift
+// Application lifecycle management, hotkey registration, and feature coordination.
+// Wires together the overlay controller, cursor manager, menu bar, and settings
+// window. Checks Accessibility permission at launch and registers global hotkeys
+// for toggling annotation, cursor highlight, and spotlight modes.
+
 import Cocoa
 
 // MARK: - AppDelegate
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+internal final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Properties
 

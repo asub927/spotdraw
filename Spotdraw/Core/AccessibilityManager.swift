@@ -1,8 +1,13 @@
+// AccessibilityManager.swift
+// macOS Accessibility permission checking and requesting.
+// Provides static helpers to verify whether the app has been granted
+// Accessibility access and to prompt the user via the system dialog.
+
 import Cocoa
 
 // MARK: - AccessibilityManager
 
-class AccessibilityManager {
+internal final class AccessibilityManager {
 
     // MARK: - Permission Check
 

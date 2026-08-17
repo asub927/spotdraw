@@ -1,8 +1,14 @@
+// MenuBarController.swift
+// NSStatusItem menu bar interface for feature toggling and tool/color selection.
+// Builds the status-bar menu with items for annotation, cursor highlight, spotlight,
+// tool and color submenus, clear-all, settings, and quit. Updates the status-bar icon
+// to reflect whether any feature is currently active.
+
 import Cocoa
 
 // MARK: - MenuBarController
 
-class MenuBarController {
+internal final class MenuBarController {
 
     // MARK: - Properties
 

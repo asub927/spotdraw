@@ -1,8 +1,13 @@
+// CursorHighlightWindow.swift
+// Floating borderless window that renders a colored translucent circle centered on
+// the cursor. Provides a ripple animation on left/right mouse clicks to give visual
+// feedback during presentations. Position is updated externally by CursorManager.
+
 import Cocoa
 
 // MARK: - CursorHighlightWindow
 
-class CursorHighlightWindow {
+internal final class CursorHighlightWindow {
 
     // MARK: - Properties
 

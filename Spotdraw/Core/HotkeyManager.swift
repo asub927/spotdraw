@@ -1,8 +1,14 @@
+// HotkeyManager.swift
+// Global and local keyboard event monitors for shortcut registration and dispatch.
+// Defines the GlobalShortcut enum mapping features to key codes and modifier flags,
+// and provides the HotkeyManager class that installs NSEvent monitors and routes
+// matching key-down events to registered handler closures.
+
 import Cocoa
 
 // MARK: - GlobalShortcut
 
-enum GlobalShortcut {
+internal enum GlobalShortcut {
     case toggleAnnotation   // Ctrl+D
     case toggleCursorHighlight  // Ctrl+S
     case toggleSpotlight    // Ctrl+L
@@ -10,21 +16,19 @@ enum GlobalShortcut {
 
     var keyCode: UInt16 {
         switch self {
-        case .toggleAnnotation: return 2       // D
-        case .toggleCursorHighlight: return 1  // S
-        case .toggleSpotlight: return 37       // L
-        case .toggleZoom: return 6             // Z
+        case .toggleAnnotation: 2       // D
+        case .toggleCursorHighlight: 1  // S
+        case .toggleSpotlight: 37       // L
+        case .toggleZoom: 6             // Z
         }
     }
 
-    var modifiers: NSEvent.ModifierFlags {
-        return .control
-    }
+    var modifiers: NSEvent.ModifierFlags { .control }
 }
 
 // MARK: - HotkeyManager
 
-class HotkeyManager {
+internal final class HotkeyManager {
 
     // MARK: - Properties
 
@@ -40,6 +44,7 @@ class HotkeyManager {
 
     // MARK: - Registration
 
+    /// Registers a handler closure to be invoked when the given global shortcut is pressed.
     func register(shortcut: GlobalShortcut, handler: @escaping () -> Void) {
         handlers[shortcut] = handler
     }
@@ -75,6 +80,7 @@ class HotkeyManager {
 
     // MARK: - Cleanup
 
+    /// Removes both global and local event monitors and clears their references.
     func removeAllMonitors() {
         if let monitor = globalMonitor {
             NSEvent.removeMonitor(monitor)

@@ -1,8 +1,14 @@
+// DrawingState.swift
+// Drawing model layer: defines the DrawingItem protocol, concrete shape types
+// (FreehandStroke, ArrowShape, RectangleShape, CircleShape, LineShape),
+// tool/board-mode enums, and the DrawingState class that owns the undo/redo
+// stack and active tool/color/line-width state shared across overlay views.
+
 import Cocoa
 
 // MARK: - ToolType
 
-enum ToolType {
+internal enum ToolType: CaseIterable, Hashable {
     case pen
     case arrow
     case rectangle
@@ -10,32 +16,73 @@ enum ToolType {
     case line
     case highlighter
     case eraser
+
+    /// The keyboard shortcut character that activates this tool.
+    var keyCharacter: String {
+        switch self {
+        case .pen: "p"
+        case .arrow: "a"
+        case .rectangle: "r"
+        case .circle: "o"
+        case .line: "l"
+        case .highlighter: "h"
+        case .eraser: "e"
+        }
+    }
 }
 
 // MARK: - BoardMode
 
-enum BoardMode: Equatable {
+internal enum BoardMode: Equatable {
     case none
     case white
     case black
     case custom(NSColor)
+
+    /// Returns the next mode in the cycling sequence: none → white → black → none.
+    /// Custom mode resets to none.
+    var next: BoardMode {
+        switch self {
+        case .none: .white
+        case .white: .black
+        case .black: .none
+        case .custom: .none
+        }
+    }
 }
 
 // MARK: - DrawingItem Protocol
 
-protocol DrawingItem: AnyObject {
+/// A drawable annotation element that can be rendered, hit-tested, and faded over time.
+internal protocol DrawingItem: AnyObject {
+    /// Unique identifier for this drawing item.
     var id: UUID { get }
+    /// The stroke or fill color used when rendering.
     var color: NSColor { get }
+    /// The stroke width in points.
     var lineWidth: CGFloat { get }
+    /// The timestamp when this item was created, used for fade calculations.
     var createdAt: Date { get }
+    /// Current opacity (0–1). Mutated by the fade timer to animate item removal.
     var opacity: CGFloat { get set }
+    /// Renders this item into the given Core Graphics context.
     func draw(in context: CGContext)
+    /// Returns `true` if `point` lies within `threshold` points of this item's stroke path.
     func hitTest(point: CGPoint, threshold: CGFloat) -> Bool
+}
+
+// MARK: - DrawingItem Default Hit-Test
+
+extension DrawingItem {
+    /// Default hit-test for line-segment shapes using vector projection.
+    func lineSegmentHitTest(point: CGPoint, start: CGPoint, end: CGPoint, threshold: CGFloat) -> Bool {
+        return distanceFromPointToLine(point: point, lineStart: start, lineEnd: end) <= threshold + lineWidth / 2
+    }
 }
 
 // MARK: - FreehandStroke
 
-class FreehandStroke: DrawingItem {
+internal final class FreehandStroke: DrawingItem {
     let id = UUID()
     let points: [CGPoint]
     let color: NSColor
@@ -51,6 +98,9 @@ class FreehandStroke: DrawingItem {
         self.alpha = alpha
     }
 
+    // Quadratic Bézier smoothing: uses midpoints between consecutive points as
+    // curve endpoints, with the original points as control points. This produces
+    // a C1-continuous curve that passes near (but not through) the sampled points.
     func draw(in context: CGContext) {
         guard points.count > 1 else { return }
 
@@ -67,7 +117,9 @@ class FreehandStroke: DrawingItem {
                 )
                 path.addQuadCurve(to: mid, control: points[i])
             }
-            path.addLine(to: points.last!)
+            if let lastPoint = points.last {
+                path.addLine(to: lastPoint)
+            }
         }
 
         context.saveGState()
@@ -96,7 +148,7 @@ class FreehandStroke: DrawingItem {
 
 // MARK: - ArrowShape
 
-class ArrowShape: DrawingItem {
+internal final class ArrowShape: DrawingItem {
     let id = UUID()
     let start: CGPoint
     let end: CGPoint
@@ -149,13 +201,13 @@ class ArrowShape: DrawingItem {
     }
 
     func hitTest(point: CGPoint, threshold: CGFloat) -> Bool {
-        return distanceFromPointToLine(point: point, lineStart: start, lineEnd: end) <= threshold + lineWidth / 2
+        lineSegmentHitTest(point: point, start: start, end: end, threshold: threshold)
     }
 }
 
 // MARK: - RectangleShape
 
-class RectangleShape: DrawingItem {
+internal final class RectangleShape: DrawingItem {
     let id = UUID()
     let rect: CGRect
     let color: NSColor
@@ -178,6 +230,9 @@ class RectangleShape: DrawingItem {
         context.restoreGState()
     }
 
+    // Expand/contract approach: checks if the point is within an expanded rect
+    // (outside boundary) but NOT within a contracted rect (inside boundary),
+    // effectively testing proximity to the rect's border.
     func hitTest(point: CGPoint, threshold: CGFloat) -> Bool {
         let expanded = rect.insetBy(dx: -(threshold + lineWidth), dy: -(threshold + lineWidth))
         let inner = rect.insetBy(dx: threshold + lineWidth, dy: threshold + lineWidth)
@@ -187,7 +242,7 @@ class RectangleShape: DrawingItem {
 
 // MARK: - CircleShape
 
-class CircleShape: DrawingItem {
+internal final class CircleShape: DrawingItem {
     let id = UUID()
     let rect: CGRect
     let color: NSColor
@@ -210,6 +265,9 @@ class CircleShape: DrawingItem {
         context.restoreGState()
     }
 
+    // Normalized distance check: maps the point into ellipse space where the
+    // ellipse boundary is at distance 1.0, then checks if the normalized distance
+    // falls within the threshold band around the boundary.
     func hitTest(point: CGPoint, threshold: CGFloat) -> Bool {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let rx = rect.width / 2
@@ -225,7 +283,7 @@ class CircleShape: DrawingItem {
 
 // MARK: - LineShape
 
-class LineShape: DrawingItem {
+internal final class LineShape: DrawingItem {
     let id = UUID()
     let start: CGPoint
     let end: CGPoint
@@ -254,13 +312,19 @@ class LineShape: DrawingItem {
     }
 
     func hitTest(point: CGPoint, threshold: CGFloat) -> Bool {
-        return distanceFromPointToLine(point: point, lineStart: start, lineEnd: end) <= threshold + lineWidth / 2
+        lineSegmentHitTest(point: point, start: start, end: end, threshold: threshold)
     }
 }
 
 // MARK: - DrawingState
 
-class DrawingState {
+/// Owns the shared drawing model: active items, undo/redo stack, and tool configuration.
+///
+/// DrawingState is intentionally a reference type (class) because multiple OverlayView
+/// instances across different screens share the same drawing state. Changes to items,
+/// undo/redo, and tool state must be visible across all overlay windows without explicit
+/// synchronization.
+internal final class DrawingState {
 
     // MARK: - Properties
 
@@ -276,31 +340,37 @@ class DrawingState {
 
     // MARK: - Mutations
 
+    /// Appends a new drawing item and clears the redo stack.
     func addItem(_ item: any DrawingItem) {
         items.append(item)
         undoStack.removeAll()
     }
 
+    /// Moves the most recent item from the canvas to the redo stack.
     func undo() {
         guard let last = items.popLast() else { return }
         undoStack.append(last)
     }
 
+    /// Restores the most recently undone item back to the canvas.
     func redo() {
         guard let last = undoStack.popLast() else { return }
         items.append(last)
     }
 
+    /// Removes all items and clears the undo/redo history.
     func clearAll() {
         items.removeAll()
         undoStack.removeAll()
     }
 
+    /// Removes the item at the given index, if valid.
     func removeItem(at index: Int) {
         guard items.indices.contains(index) else { return }
         items.remove(at: index)
     }
 
+    /// Removes all items whose stroke path intersects the given point within `threshold` points.
     func removeItems(intersecting point: CGPoint, threshold: CGFloat = 10) {
         items.removeAll { $0.hitTest(point: point, threshold: threshold) }
     }
@@ -308,6 +378,9 @@ class DrawingState {
 
 // MARK: - Geometry Utilities
 
+// Vector projection: projects the test point onto the infinite line through
+// start/end, clamps parameter t to [0,1] to restrict to the segment, then
+// returns Euclidean distance to the clamped projection.
 func distanceFromPointToLine(point: CGPoint, lineStart: CGPoint, lineEnd: CGPoint) -> CGFloat {
     let dx = lineEnd.x - lineStart.x
     let dy = lineEnd.y - lineStart.y

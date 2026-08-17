@@ -1,8 +1,14 @@
+// ZoomWindow.swift
+// Floating magnification bubble that captures and displays zoomed screen content.
+// Uses a 30 fps timer to grab a CGWindowListCreateImage of the area around the
+// cursor, excluding its own window, and renders the zoomed capture inside a
+// circular-masked NSImageView with a decorative border ring.
+
 import Cocoa
 
 // MARK: - ZoomWindow
 
-class ZoomWindow {
+internal final class ZoomWindow {
 
     // MARK: - Properties
 
@@ -144,9 +150,9 @@ class ZoomWindow {
 
         let mouseLocation = NSEvent.mouseLocation
 
-        // Convert to screen coordinates for CGWindowListCreateImage
-        // NSEvent.mouseLocation is in Cocoa coordinates (origin bottom-left)
-        // CGWindowListCreateImage uses Quartz coordinates (origin top-left)
+        // Coordinate conversion: NSEvent.mouseLocation uses Cocoa coordinates (origin at
+        // bottom-left), while CGWindowListCreateImage uses Quartz coordinates (origin at
+        // top-left). Convert by: quartzY = screenHeight - cocoaY.
         guard let screen = NSScreen.main else { return }
         let screenHeight = screen.frame.height
 

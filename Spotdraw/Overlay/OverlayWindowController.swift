@@ -1,8 +1,14 @@
+// OverlayWindowController.swift
+// Manages full-screen transparent overlay windows for annotation across all screens.
+// Creates one borderless NSWindow per display, handles screen-change notifications,
+// coordinates drawing activation/deactivation, and exposes tool/color/line-width
+// setters that propagate to the shared DrawingState.
+
 import Cocoa
 
 // MARK: - OverlayWindowController
 
-class OverlayWindowController {
+internal final class OverlayWindowController {
 
     // MARK: - Properties
 
@@ -11,8 +17,8 @@ class OverlayWindowController {
     private var drawingState = DrawingState()
     private var screenObserver: Any?
 
-    /// Callback triggered when the user requests deactivation from within the overlay (Ctrl+D or Escape).
-    /// Set by AppDelegate to wire view-level deactivation back to the toggle action.
+    /// Callback invoked when the user requests deactivation from within the overlay (Ctrl+D or Escape).
+    /// Set by AppDelegate to wire view-level deactivation back to the global toggle action.
     var onDeactivate: (() -> Void)? {
         didSet {
             // Propagate to any existing overlay views
@@ -32,6 +38,7 @@ class OverlayWindowController {
 
     // MARK: - Public API
 
+    /// Toggles the annotation overlay on or off.
     func toggle() {
         if isActive {
             deactivate()
@@ -40,6 +47,7 @@ class OverlayWindowController {
         }
     }
 
+    /// Creates overlay windows on all screens, makes them key, and enables mouse interaction.
     func activate() {
         guard AccessibilityManager.checkPermission() else {
             showAccessibilityPermissionAlert()
@@ -58,6 +66,7 @@ class OverlayWindowController {
         NSCursor.crosshair.set()
     }
 
+    /// Hides overlay windows and restores the default cursor.
     func deactivate() {
         overlayWindows.forEach { window in
             window.ignoresMouseEvents = true
@@ -67,6 +76,7 @@ class OverlayWindowController {
         NSCursor.arrow.set()
     }
 
+    /// Removes all drawn items and refreshes overlay views.
     func clearAll() {
         drawingState.clearAll()
         overlayWindows.forEach { window in
@@ -78,32 +88,28 @@ class OverlayWindowController {
 
     // MARK: - Drawing State Access
 
+    /// Sets the active drawing tool.
     func setTool(_ tool: ToolType) {
         drawingState.activeTool = tool
     }
 
+    /// Sets the active stroke color.
     func setColor(_ color: NSColor) {
         drawingState.activeColor = color
     }
 
+    /// Sets the active stroke width in points.
     func setLineWidth(_ width: CGFloat) {
         drawingState.activeLineWidth = width
     }
 
+    /// Cycles the board background mode: none → white → black → none.
     func toggleBoard() {
-        switch drawingState.boardMode {
-        case .none:
-            drawingState.boardMode = .white
-        case .white:
-            drawingState.boardMode = .black
-        case .black:
-            drawingState.boardMode = .none
-        case .custom:
-            drawingState.boardMode = .none
-        }
+        drawingState.boardMode = drawingState.boardMode.next
         refreshAllViews()
     }
 
+    /// Toggles automatic fade-out of drawn annotations.
     func toggleFadeMode() {
         drawingState.fadeMode.toggle()
     }

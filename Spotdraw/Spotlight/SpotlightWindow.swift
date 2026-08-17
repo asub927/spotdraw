@@ -1,8 +1,14 @@
+// SpotlightWindow.swift
+// Full-screen dimming overlay with a clear circular cutout (spotlight) that follows
+// the cursor. The SpotlightView fills the screen with a semi-transparent black layer
+// and uses CGContext clear blend mode to punch through a spotlight ellipse at the
+// current mouse position. Managed by CursorManager.
+
 import Cocoa
 
 // MARK: - SpotlightWindow
 
-class SpotlightWindow {
+internal final class SpotlightWindow {
 
     // MARK: - Properties
 
@@ -70,7 +76,7 @@ class SpotlightWindow {
 
 // MARK: - SpotlightView
 
-class SpotlightView: NSView {
+internal final class SpotlightView: NSView {
 
     // MARK: - Properties
 

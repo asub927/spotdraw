@@ -1,8 +1,13 @@
+// CursorManager.swift
+// Coordinates cursor highlight, spotlight, and zoom features with mouse tracking.
+// Manages the lifecycle of each feature's window and installs a shared global mouse
+// event monitor that dispatches position updates and click effects to active windows.
+
 import Cocoa
 
 // MARK: - CursorManager
 
-class CursorManager {
+internal final class CursorManager {
 
     // MARK: - Properties
 
@@ -25,6 +30,7 @@ class CursorManager {
 
     // MARK: - Cursor Highlight
 
+    /// Toggles the cursor highlight circle on or off.
     func toggleHighlight() {
         if isHighlightActive {
             deactivateHighlight()
@@ -50,6 +56,7 @@ class CursorManager {
 
     // MARK: - Spotlight
 
+    /// Toggles the spotlight dimming effect on or off.
     func toggleSpotlight() {
         if isSpotlightActive {
             deactivateSpotlight()
@@ -75,6 +82,7 @@ class CursorManager {
 
     // MARK: - Zoom
 
+    /// Toggles the magnification zoom window on or off.
     func toggleZoom() {
         if isZoomActive {
             deactivateZoom()

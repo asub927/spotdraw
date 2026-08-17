@@ -1,9 +1,15 @@
+// SettingsWindowController.swift
+// Settings window hosting a SwiftUI TabView with tabs for General, Annotation,
+// Cursor, and Spotlight preferences. Each tab reads initial values from
+// SettingsManager and writes changes back via .onChange observers. The window
+// controller manages a single NSWindow instance reused across show calls.
+
 import Cocoa
 import SwiftUI
 
 // MARK: - SettingsWindowController
 
-class SettingsWindowController {
+internal final class SettingsWindowController {
 
     // MARK: - Properties
 
@@ -40,7 +46,7 @@ class SettingsWindowController {
 
 // MARK: - SettingsView
 
-struct SettingsView: View {
+internal struct SettingsView: View {
     @State private var selectedTab = 0
 
     var body: some View {
@@ -65,7 +71,7 @@ struct SettingsView: View {
 
 // MARK: - General Tab
 
-struct GeneralSettingsTab: View {
+internal struct GeneralSettingsTab: View {
     @State private var fadeDuration: Double = SettingsManager.shared.fadeDuration
     @State private var launchAtLogin: Bool = false
 
@@ -95,7 +101,7 @@ struct GeneralSettingsTab: View {
 
 // MARK: - Annotation Tab
 
-struct AnnotationSettingsTab: View {
+internal struct AnnotationSettingsTab: View {
     @State private var strokeWidth: Double = Double(SettingsManager.shared.strokeWidth)
     @State private var selectedColorIndex: Int = 0
 
@@ -151,7 +157,7 @@ struct AnnotationSettingsTab: View {
 
 // MARK: - Cursor Tab
 
-struct CursorSettingsTab: View {
+internal struct CursorSettingsTab: View {
     @State private var highlightSize: Double = Double(SettingsManager.shared.highlightSize)
     @State private var highlightOpacity: Double = Double(SettingsManager.shared.highlightOpacity)
     @State private var selectedColorIndex: Int = 0
@@ -220,7 +226,7 @@ struct CursorSettingsTab: View {
 
 // MARK: - Spotlight Tab
 
-struct SpotlightSettingsTab: View {
+internal struct SpotlightSettingsTab: View {
     @State private var spotlightSize: Double = Double(SettingsManager.shared.spotlightSize)
     @State private var dimIntensity: Double = Double(SettingsManager.shared.spotlightDimIntensity)
 
