@@ -1,0 +1,22 @@
+import Cocoa
+
+// MARK: - AccessibilityManager
+
+class AccessibilityManager {
+
+    // MARK: - Permission Check
+
+    /// Returns `true` if the app has been granted Accessibility permission.
+    static func checkPermission() -> Bool {
+        return AXIsProcessTrusted()
+    }
+
+    // MARK: - Permission Request
+
+    /// Prompts the user to grant Accessibility permission if not already authorized.
+    /// Shows the system Accessibility preferences dialog.
+    static func requestPermission() {
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+        AXIsProcessTrustedWithOptions(options)
+    }
+}

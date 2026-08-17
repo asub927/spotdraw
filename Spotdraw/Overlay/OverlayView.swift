@@ -7,6 +7,7 @@ class OverlayView: NSView {
     // MARK: - Properties
 
     var drawingState = DrawingState()
+    var onDeactivate: (() -> Void)?
     private var currentPoints: [CGPoint] = []
     private var shapeStartPoint: CGPoint = .zero
     private var currentShapeEndPoint: CGPoint = .zero
@@ -326,6 +327,13 @@ class OverlayView: NSView {
 
         let hasCommand = event.modifierFlags.contains(.command)
         let hasShift = event.modifierFlags.contains(.shift)
+        let hasControl = event.modifierFlags.contains(.control)
+
+        // Ctrl+D deactivates the overlay — check before the switch to prevent the event from being swallowed
+        if hasControl && characters == "d" {
+            onDeactivate?()
+            return
+        }
 
         switch characters {
         case "z" where hasCommand && hasShift:
@@ -353,7 +361,7 @@ class OverlayView: NSView {
         case " ":
             drawingState.fadeMode.toggle()
         case "\u{1B}": // Escape
-            clearAll()
+            onDeactivate?()
         default:
             super.keyDown(with: event)
         }

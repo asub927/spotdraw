@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
@@ -11,10 +11,24 @@ let package = Package(
             name: "Spotdraw",
             path: "Spotdraw",
             exclude: ["Resources/Info.plist"],
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ],
             linkerSettings: [
                 .linkedFramework("Cocoa"),
                 .linkedFramework("QuartzCore"),
                 .linkedFramework("SwiftUI")
+            ]
+        ),
+        .executableTarget(
+            name: "SpotdrawTests",
+            path: "SpotdrawTests",
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ],
+            linkerSettings: [
+                .linkedFramework("Cocoa"),
+                .linkedFramework("QuartzCore")
             ]
         )
     ]

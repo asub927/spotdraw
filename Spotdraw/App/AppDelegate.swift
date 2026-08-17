@@ -17,6 +17,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - App Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Check accessibility permission at launch and prompt if not granted
+        if !AccessibilityManager.checkPermission() {
+            AccessibilityManager.requestPermission()
+            showAccessibilityAlert()
+        }
+
         settingsManager = SettingsManager.shared
         settingsWindowController = SettingsWindowController()
         setupMenuBar()
@@ -46,6 +52,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupOverlay() {
         overlayController = OverlayWindowController()
+        overlayController.onDeactivate = { [weak self] in
+            self?.toggleAnnotation()
+        }
     }
 
     private func setupCursorManager() {
@@ -68,6 +77,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Actions
 
     private func toggleAnnotation() {
+        // Guard: only check permission when activating, not when deactivating
+        if !overlayController.isActive {
+            guard AccessibilityManager.checkPermission() else {
+                AccessibilityManager.requestPermission()
+                showAccessibilityAlert()
+                return
+            }
+        }
+
         overlayController.toggle()
         menuBarController.updateState(annotating: overlayController.isActive)
     }
@@ -84,5 +102,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func clearAll() {
         overlayController.clearAll()
+    }
+
+    // MARK: - Accessibility
+
+    private func showAccessibilityAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Accessibility Permission Required"
+        alert.informativeText = "SpotDraw needs Accessibility permission to detect global keyboard shortcuts (like Ctrl+D) for activating and deactivating the annotation overlay. Please grant permission in System Settings > Privacy & Security > Accessibility."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Later")
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 }

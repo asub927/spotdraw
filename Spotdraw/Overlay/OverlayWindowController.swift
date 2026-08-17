@@ -11,6 +11,19 @@ class OverlayWindowController {
     private var drawingState = DrawingState()
     private var screenObserver: Any?
 
+    /// Callback triggered when the user requests deactivation from within the overlay (Ctrl+D or Escape).
+    /// Set by AppDelegate to wire view-level deactivation back to the toggle action.
+    var onDeactivate: (() -> Void)? {
+        didSet {
+            // Propagate to any existing overlay views
+            overlayWindows.forEach { window in
+                if let view = window.contentView as? OverlayView {
+                    view.onDeactivate = onDeactivate
+                }
+            }
+        }
+    }
+
     // MARK: - Init
 
     init() {
@@ -28,6 +41,11 @@ class OverlayWindowController {
     }
 
     func activate() {
+        guard AccessibilityManager.checkPermission() else {
+            showAccessibilityPermissionAlert()
+            return
+        }
+
         if overlayWindows.isEmpty {
             createOverlayWindows()
         }
@@ -108,7 +126,7 @@ class OverlayWindowController {
             screen: screen
         )
 
-        window.level = .screenSaver
+        window.level = .floating
         window.backgroundColor = .clear
         window.isOpaque = false
         window.hasShadow = false
@@ -119,6 +137,7 @@ class OverlayWindowController {
 
         let overlayView = OverlayView(frame: screen.frame)
         overlayView.drawingState = drawingState
+        overlayView.onDeactivate = onDeactivate
         window.contentView = overlayView
 
         window.orderFrontRegardless()
@@ -150,6 +169,26 @@ class OverlayWindowController {
     private func refreshAllViews() {
         overlayWindows.forEach { window in
             window.contentView?.needsDisplay = true
+        }
+    }
+
+    // MARK: - Permission Alert
+
+    private func showAccessibilityPermissionAlert() {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Accessibility Permission Required"
+            alert.informativeText = "SpotDraw requires Accessibility permission to register global shortcuts. Please grant permission in System Settings > Privacy & Security > Accessibility."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Cancel")
+
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
         }
     }
 

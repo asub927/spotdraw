@@ -47,8 +47,12 @@ class HotkeyManager {
     // MARK: - Monitor Setup
 
     private func setupMonitors() {
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.handleKeyEvent(event)
+        if AXIsProcessTrusted() {
+            globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                self?.handleKeyEvent(event)
+            }
+        } else {
+            NSLog("[HotkeyManager] Accessibility permission not granted — skipping global monitor registration. Global shortcuts will not work outside the app.")
         }
 
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
