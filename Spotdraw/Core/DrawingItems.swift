@@ -14,6 +14,7 @@ internal final class FreehandStroke: DrawingItem {
     let createdAt = Date()
     var opacity: CGFloat = 1.0
     let alpha: CGFloat
+    var offset: CGSize = .zero
 
     init(points: [CGPoint], color: NSColor, lineWidth: CGFloat, alpha: CGFloat = 1.0) {
         self.points = points
@@ -21,6 +22,22 @@ internal final class FreehandStroke: DrawingItem {
         self.lineWidth = lineWidth
         self.alpha = alpha
     }
+
+    // Cached because `points` can hold hundreds of entries and this is read on
+    // every marquee test and every selection-outline draw.
+    lazy var untranslatedBounds: CGRect = {
+        guard let first = points.first else { return .zero }
+        var minX = first.x, maxX = first.x
+        var minY = first.y, maxY = first.y
+        for p in points {
+            minX = min(minX, p.x)
+            maxX = max(maxX, p.x)
+            minY = min(minY, p.y)
+            maxY = max(maxY, p.y)
+        }
+        let box = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+        return box.insetBy(dx: -(lineWidth / 2), dy: -(lineWidth / 2))
+    }()
 
     // Quadratic Bézier smoothing: uses midpoints between consecutive points as
     // curve endpoints, with the original points as control points. This produces
@@ -80,12 +97,22 @@ internal final class ArrowShape: DrawingItem {
     let lineWidth: CGFloat
     let createdAt = Date()
     var opacity: CGFloat = 1.0
+    var offset: CGSize = .zero
 
     init(start: CGPoint, end: CGPoint, color: NSColor, lineWidth: CGFloat) {
         self.start = start
         self.end = end
         self.color = color
         self.lineWidth = lineWidth
+    }
+
+    var untranslatedBounds: CGRect {
+        let minX = min(start.x, end.x)
+        let maxX = max(start.x, end.x)
+        let minY = min(start.y, end.y)
+        let maxY = max(start.y, end.y)
+        let box = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+        return box.insetBy(dx: -(lineWidth * 2), dy: -(lineWidth * 2))
     }
 
     func draw(in context: CGContext) {
@@ -138,11 +165,16 @@ internal final class RectangleShape: DrawingItem {
     let lineWidth: CGFloat
     let createdAt = Date()
     var opacity: CGFloat = 1.0
+    var offset: CGSize = .zero
 
     init(rect: CGRect, color: NSColor, lineWidth: CGFloat) {
         self.rect = rect
         self.color = color
         self.lineWidth = lineWidth
+    }
+
+    var untranslatedBounds: CGRect {
+        rect.insetBy(dx: -(lineWidth / 2), dy: -(lineWidth / 2))
     }
 
     func draw(in context: CGContext) {
@@ -173,11 +205,16 @@ internal final class CircleShape: DrawingItem {
     let lineWidth: CGFloat
     let createdAt = Date()
     var opacity: CGFloat = 1.0
+    var offset: CGSize = .zero
 
     init(rect: CGRect, color: NSColor, lineWidth: CGFloat) {
         self.rect = rect
         self.color = color
         self.lineWidth = lineWidth
+    }
+
+    var untranslatedBounds: CGRect {
+        rect.insetBy(dx: -(lineWidth / 2), dy: -(lineWidth / 2))
     }
 
     func draw(in context: CGContext) {
@@ -215,12 +252,22 @@ internal final class LineShape: DrawingItem {
     let lineWidth: CGFloat
     let createdAt = Date()
     var opacity: CGFloat = 1.0
+    var offset: CGSize = .zero
 
     init(start: CGPoint, end: CGPoint, color: NSColor, lineWidth: CGFloat) {
         self.start = start
         self.end = end
         self.color = color
         self.lineWidth = lineWidth
+    }
+
+    var untranslatedBounds: CGRect {
+        let minX = min(start.x, end.x)
+        let maxX = max(start.x, end.x)
+        let minY = min(start.y, end.y)
+        let maxY = max(start.y, end.y)
+        let box = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+        return box.insetBy(dx: -(lineWidth / 2), dy: -(lineWidth / 2))
     }
 
     func draw(in context: CGContext) {

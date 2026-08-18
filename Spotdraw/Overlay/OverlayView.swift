@@ -64,7 +64,7 @@ import Cocoa
         // Draw all committed items
         for item in drawingState.items {
             if item.opacity > 0 {
-                item.draw(in: context)
+                item.render(in: context)
             }
         }
 
