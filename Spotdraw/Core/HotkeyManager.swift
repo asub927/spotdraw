@@ -13,6 +13,7 @@ internal enum GlobalShortcut {
     case toggleCursorHighlight  // Ctrl+S
     case toggleSpotlight        // Ctrl+L
     case toggleZoom             // Ctrl+Z
+    case cycleCursorSize        // Ctrl+Shift+S
 
     var keyCode: UInt16 {
         switch self {
@@ -20,16 +21,22 @@ internal enum GlobalShortcut {
         case .toggleCursorHighlight: 1  // S
         case .toggleSpotlight: 37       // L
         case .toggleZoom: 6             // Z
+        case .cycleCursorSize: 1        // S
         }
     }
 
-    var modifiers: NSEvent.ModifierFlags { .control }
+    var modifiers: NSEvent.ModifierFlags {
+        switch self {
+        case .cycleCursorSize: [.control, .shift]
+        default: .control
+        }
+    }
 
     /// CGEventFlags equivalent of the NSEvent modifier flags.
     var cgEventFlags: CGEventFlags {
         switch self {
-        case .toggleAnnotation, .toggleCursorHighlight, .toggleSpotlight, .toggleZoom:
-            return .maskControl
+        case .cycleCursorSize: [.maskControl, .maskShift]
+        default: .maskControl
         }
     }
 }
@@ -127,8 +134,12 @@ internal enum GlobalShortcut {
         }
 
         // Check if this event matches any registered shortcut.
+        // Extract only the modifier flags we care about (control, shift, option, command)
+        let relevantFlags: CGEventFlags = [.maskControl, .maskShift, .maskAlternate, .maskCommand]
+        let eventModifiers = flags.intersection(relevantFlags)
+
         for (shortcut, handler) in shared.handlers {
-            if keyCode == shortcut.keyCode && flags.contains(shortcut.cgEventFlags) {
+            if keyCode == shortcut.keyCode && eventModifiers == shortcut.cgEventFlags {
                 // Match found — dispatch handler on main thread and consume the event.
                 DispatchQueue.main.async {
                     handler()
@@ -154,9 +165,11 @@ internal enum GlobalShortcut {
     }
 
     private func handleLocalKeyEvent(_ event: NSEvent) {
+        let relevantModifiers: NSEvent.ModifierFlags = [.control, .shift, .option, .command]
+        let eventMods = event.modifierFlags.intersection(.deviceIndependentFlagsMask).intersection(relevantModifiers)
+
         for (shortcut, handler) in handlers {
-            if event.keyCode == shortcut.keyCode &&
-               event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(shortcut.modifiers) {
+            if event.keyCode == shortcut.keyCode && eventMods == shortcut.modifiers {
                 handler()
                 return
             }

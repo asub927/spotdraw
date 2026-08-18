@@ -21,10 +21,16 @@ import Cocoa
     var onOpenSettings: (() -> Void)?
     var onSelectTool: ((ToolType) -> Void)?
     var onSelectColor: ((NSColor) -> Void)?
+    var onCursorSettingsChanged: (() -> Void)?
 
     private var annotationMenuItem: NSMenuItem!
     private var cursorMenuItem: NSMenuItem!
     private var spotlightMenuItem: NSMenuItem!
+
+    private var cursorHighlightColorItems: [NSMenuItem] = []
+    private var cursorHighlightSizeItems: [NSMenuItem] = []
+    private var cursorHighlightShapeItems: [NSMenuItem] = []
+    private var cursorGlowItem: NSMenuItem!
 
     // MARK: - Init
 
@@ -68,6 +74,78 @@ import Cocoa
         spotlightMenuItem = NSMenuItem(title: "Toggle Spotlight (⌃L)", action: #selector(toggleSpotlightAction), keyEquivalent: "")
         spotlightMenuItem.target = self
         menu.addItem(spotlightMenuItem)
+
+        // Cursor Highlight settings submenu
+        let cursorSubmenu = NSMenu()
+
+        // Color section header
+        let colorHeader = NSMenuItem(title: "Color", action: nil, keyEquivalent: "")
+        colorHeader.isEnabled = false
+        cursorSubmenu.addItem(colorHeader)
+
+        let cursorColors = ColorPresets.cursor
+        for (index, preset) in cursorColors.enumerated() {
+            let item = NSMenuItem(title: preset.name, action: #selector(cursorHighlightColorAction(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = index
+            item.state = index == 0 ? .on : .off
+            cursorSubmenu.addItem(item)
+            cursorHighlightColorItems.append(item)
+        }
+
+        cursorSubmenu.addItem(NSMenuItem.separator())
+
+        // Size section header
+        let sizeHeader = NSMenuItem(title: "Size", action: nil, keyEquivalent: "")
+        sizeHeader.isEnabled = false
+        cursorSubmenu.addItem(sizeHeader)
+
+        let sizePresets: [(String, CGFloat)] = [
+            ("Small (30pt)", 30),
+            ("Medium (50pt)", 50),
+            ("Large (100pt)", 100),
+            ("Extra Large (150pt)", 150)
+        ]
+        let currentSize = SettingsManager.shared.highlightSize
+        for (index, (label, size)) in sizePresets.enumerated() {
+            let item = NSMenuItem(title: label, action: #selector(cursorHighlightSizeAction(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = index
+            item.representedObject = size as NSNumber
+            item.state = (currentSize == size) ? .on : .off
+            cursorSubmenu.addItem(item)
+            cursorHighlightSizeItems.append(item)
+        }
+
+        cursorSubmenu.addItem(NSMenuItem.separator())
+
+        // Glow toggle
+        let glowItem = NSMenuItem(title: "Glow", action: #selector(cursorGlowToggleAction), keyEquivalent: "")
+        glowItem.target = self
+        glowItem.state = SettingsManager.shared.glowEnabled ? .on : .off
+        cursorSubmenu.addItem(glowItem)
+        cursorGlowItem = glowItem
+
+        cursorSubmenu.addItem(NSMenuItem.separator())
+
+        // Shape section header
+        let shapeHeader = NSMenuItem(title: "Shape", action: nil, keyEquivalent: "")
+        shapeHeader.isEnabled = false
+        cursorSubmenu.addItem(shapeHeader)
+
+        let currentShape = SettingsManager.shared.highlightShape
+        for shape in HighlightShape.allCases {
+            let item = NSMenuItem(title: shape.displayName, action: #selector(cursorHighlightShapeAction(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = shape.rawValue
+            item.state = (shape == currentShape) ? .on : .off
+            cursorSubmenu.addItem(item)
+            cursorHighlightShapeItems.append(item)
+        }
+
+        let cursorSettingsItem = NSMenuItem(title: "Cursor Highlight", action: nil, keyEquivalent: "")
+        cursorSettingsItem.submenu = cursorSubmenu
+        menu.addItem(cursorSettingsItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -212,6 +290,39 @@ import Cocoa
 
     @objc private func quitAction() {
         onQuit()
+    }
+
+    // MARK: - Cursor Highlight Submenu Actions
+
+    @objc private func cursorHighlightColorAction(_ sender: NSMenuItem) {
+        let index = sender.tag
+        guard index < ColorPresets.cursor.count else { return }
+        SettingsManager.shared.highlightColor = ColorPresets.cursor[index].color
+        cursorHighlightColorItems.forEach { $0.state = .off }
+        sender.state = .on
+        onCursorSettingsChanged?()
+    }
+
+    @objc private func cursorHighlightSizeAction(_ sender: NSMenuItem) {
+        guard let size = sender.representedObject as? NSNumber else { return }
+        SettingsManager.shared.highlightSize = CGFloat(size.floatValue)
+        cursorHighlightSizeItems.forEach { $0.state = .off }
+        sender.state = .on
+        onCursorSettingsChanged?()
+    }
+
+    @objc private func cursorGlowToggleAction() {
+        SettingsManager.shared.glowEnabled.toggle()
+        cursorGlowItem.state = SettingsManager.shared.glowEnabled ? .on : .off
+        onCursorSettingsChanged?()
+    }
+
+    @objc private func cursorHighlightShapeAction(_ sender: NSMenuItem) {
+        guard let shape = HighlightShape(rawValue: sender.tag) else { return }
+        SettingsManager.shared.highlightShape = shape
+        cursorHighlightShapeItems.forEach { $0.state = .off }
+        sender.state = .on
+        onCursorSettingsChanged?()
     }
 }
 

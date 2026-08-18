@@ -23,12 +23,63 @@ import Cocoa
 
     // MARK: - Setup
 
+    private func makeHighlightPath(in rect: CGRect) -> CGPath {
+        switch settings.highlightShape {
+        case .circle:
+            return CGPath(ellipseIn: rect, transform: nil)
+        case .ring:
+            return CGPath(ellipseIn: rect, transform: nil)
+        case .square:
+            return CGPath(roundedRect: rect, cornerWidth: rect.width * 0.15, cornerHeight: rect.height * 0.15, transform: nil)
+        case .crosshair:
+            let path = CGMutablePath()
+            let center = CGPoint(x: rect.midX, y: rect.midY)
+            let armLength = rect.width / 2
+            let armWidth: CGFloat = rect.width * 0.12
+            // Horizontal bar
+            path.addRoundedRect(in: CGRect(
+                x: center.x - armLength,
+                y: center.y - armWidth / 2,
+                width: armLength * 2,
+                height: armWidth
+            ), cornerWidth: armWidth / 2, cornerHeight: armWidth / 2)
+            // Vertical bar
+            path.addRoundedRect(in: CGRect(
+                x: center.x - armWidth / 2,
+                y: center.y - armLength,
+                width: armWidth,
+                height: armLength * 2
+            ), cornerWidth: armWidth / 2, cornerHeight: armWidth / 2)
+            return path
+        }
+    }
+
+    private func applyShapeStyle(to layer: CAShapeLayer) {
+        switch settings.highlightShape {
+        case .ring:
+            layer.fillColor = NSColor.clear.cgColor
+            layer.strokeColor = settings.highlightColor.withAlphaComponent(settings.highlightOpacity).cgColor
+            layer.lineWidth = max(settings.highlightSize * 0.15, 4)
+        case .crosshair:
+            layer.fillColor = settings.highlightColor.withAlphaComponent(settings.highlightOpacity).cgColor
+            layer.strokeColor = NSColor.clear.cgColor
+            layer.lineWidth = 0
+        default:
+            layer.fillColor = settings.highlightColor.withAlphaComponent(settings.highlightOpacity).cgColor
+            layer.strokeColor = settings.highlightColor.cgColor
+            layer.lineWidth = 2.0
+        }
+    }
+
     private func setupWindow() {
         guard let screen = NSScreen.main else { return }
 
-        let size = settings.highlightSize * 2
+        let glowExtra: CGFloat = settings.glowEnabled ? settings.glowRadius : 0
+        let totalSize = (settings.highlightSize + glowExtra) * 2
+        let highlightDiameter = settings.highlightSize * 2
+
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: size, height: size),
+            contentRect: NSRect(x: 0, y: 0, width: totalSize, height: totalSize),
             styleMask: .borderless,
             backing: .buffered,
             defer: false,
@@ -43,16 +94,26 @@ import Cocoa
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.isReleasedWhenClosed = false
 
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: size, height: size))
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: totalSize, height: totalSize))
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor.clear.cgColor
 
         let layer = CAShapeLayer()
-        let rect = CGRect(x: 0, y: 0, width: size, height: size)
-        layer.path = CGPath(ellipseIn: rect, transform: nil)
-        layer.fillColor = settings.highlightColor.withAlphaComponent(settings.highlightOpacity).cgColor
-        layer.strokeColor = settings.highlightColor.cgColor
-        layer.lineWidth = 2.0
+        let offset = (totalSize - highlightDiameter) / 2
+        let circleRect = CGRect(x: offset, y: offset, width: highlightDiameter, height: highlightDiameter)
+        layer.path = makeHighlightPath(in: circleRect)
+        applyShapeStyle(to: layer)
+
+        // Glow via shadow
+        if settings.glowEnabled {
+            layer.shadowColor = settings.highlightColor.cgColor
+            layer.shadowRadius = settings.glowRadius
+            layer.shadowOpacity = 0.8
+            layer.shadowOffset = .zero
+        } else {
+            layer.shadowOpacity = 0
+        }
+
         view.layer?.addSublayer(layer)
 
         window.contentView = view
@@ -78,6 +139,45 @@ import Cocoa
             y: point.y - size.height / 2
         )
         window.setFrameOrigin(origin)
+    }
+
+    /// Refreshes the highlight appearance from current SettingsManager values.
+    /// Call after any settings change (color, size, glow) to update immediately.
+    func updateAppearance() {
+        guard let window, let highlightLayer, let contentView = window.contentView else { return }
+
+        let glowExtra: CGFloat = settings.glowEnabled ? settings.glowRadius : 0
+        let totalSize = (settings.highlightSize + glowExtra) * 2
+        let highlightDiameter = settings.highlightSize * 2
+
+        // Resize window centered on current position
+        let currentCenter = NSPoint(x: window.frame.midX, y: window.frame.midY)
+        let newFrame = NSRect(
+            x: currentCenter.x - totalSize / 2,
+            y: currentCenter.y - totalSize / 2,
+            width: totalSize,
+            height: totalSize
+        )
+        window.setFrame(newFrame, display: false)
+        contentView.frame = NSRect(x: 0, y: 0, width: totalSize, height: totalSize)
+
+        // Update highlight circle path (centered in window)
+        let offset = (totalSize - highlightDiameter) / 2
+        let circleRect = CGRect(x: offset, y: offset, width: highlightDiameter, height: highlightDiameter)
+        highlightLayer.path = makeHighlightPath(in: circleRect)
+
+        // Update colors based on shape
+        applyShapeStyle(to: highlightLayer)
+
+        // Update glow
+        if settings.glowEnabled {
+            highlightLayer.shadowColor = settings.highlightColor.cgColor
+            highlightLayer.shadowRadius = settings.glowRadius
+            highlightLayer.shadowOpacity = 0.8
+            highlightLayer.shadowOffset = .zero
+        } else {
+            highlightLayer.shadowOpacity = 0
+        }
     }
 
     func showClickEffect(at point: NSPoint, isRightClick: Bool) {

@@ -32,6 +32,11 @@ import Cocoa
 
     // MARK: - Cursor Highlight
 
+    /// Tells the active highlight window to refresh its appearance from current settings.
+    func updateHighlightAppearance() {
+        highlightWindow?.updateAppearance()
+    }
+
     /// Toggles the cursor highlight circle on or off.
     func toggleHighlight() {
         if isHighlightActive {

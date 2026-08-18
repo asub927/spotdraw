@@ -19,6 +19,7 @@ import Cocoa
     private var hotkeyManager: HotkeyManager!
     private var settingsManager: SettingsManager!
     private var settingsWindowController: SettingsWindowController!
+    private let sizePresets: [CGFloat] = [30, 50, 100, 150]
 
     // MARK: - App Lifecycle
 
@@ -60,6 +61,10 @@ import Cocoa
         menuBarController.onSelectColor = { [weak self] color in
             self?.overlayController.setColor(color)
         }
+        menuBarController.onCursorSettingsChanged = { [weak self] in
+            guard let self, self.cursorManager.isHighlightActive else { return }
+            self.cursorManager.updateHighlightAppearance()
+        }
     }
 
     private func setupOverlay() {
@@ -83,6 +88,9 @@ import Cocoa
         }
         hotkeyManager.register(shortcut: .toggleSpotlight) { [weak self] in
             self?.toggleSpotlight()
+        }
+        hotkeyManager.register(shortcut: .cycleCursorSize) { [weak self] in
+            self?.cycleCursorSize()
         }
     }
 
@@ -114,6 +122,24 @@ import Cocoa
 
     private func clearAll() {
         overlayController.clearAll()
+    }
+
+    private func cycleCursorSize() {
+        let current = settingsManager.highlightSize
+        let nextSize: CGFloat
+
+        if let currentIndex = sizePresets.firstIndex(of: current) {
+            // Exact preset match — advance to next
+            nextSize = sizePresets[(currentIndex + 1) % sizePresets.count]
+        } else {
+            // Not an exact preset — snap to the smallest preset greater than current
+            nextSize = sizePresets.first(where: { $0 > current }) ?? sizePresets[0]
+        }
+
+        settingsManager.highlightSize = nextSize
+        if cursorManager.isHighlightActive {
+            cursorManager.updateHighlightAppearance()
+        }
     }
 
     // MARK: - Accessibility

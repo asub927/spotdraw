@@ -184,6 +184,9 @@ internal struct CursorSettingsTab: View {
     @State private var highlightSize: Double = Double(SettingsManager.shared.highlightSize)
     @State private var highlightOpacity: Double = Double(SettingsManager.shared.highlightOpacity)
     @State private var selectedColorIndex: Int = 0
+    @State private var glowEnabled: Bool = SettingsManager.shared.glowEnabled
+    @State private var glowRadius: Double = Double(SettingsManager.shared.glowRadius)
+    @State private var highlightShape: Int = SettingsManager.shared.highlightShape.rawValue
 
     var body: some View {
         Form {
@@ -211,8 +214,8 @@ internal struct CursorSettingsTab: View {
 
                     HStack {
                         Text("Size:")
-                        // Highlight size: 20–100pt radius (20pt for visibility, 100pt proportional to cursor)
-                        Slider(value: $highlightSize, in: 20...100, step: 5) {
+                        // Highlight size: 20–200pt radius (20pt for visibility, 200pt for large displays/presentations)
+                        Slider(value: $highlightSize, in: 20...200, step: 5) {
                             Text("Size")
                         }
                         Text("\(Int(highlightSize))")
@@ -233,6 +236,48 @@ internal struct CursorSettingsTab: View {
                     }
                     .onChangeCompat(of: highlightOpacity) { newValue in
                         SettingsManager.shared.highlightOpacity = CGFloat(newValue)
+                    }
+
+                    HStack {
+                        Text("Shape:")
+                        Picker("", selection: $highlightShape) {
+                            ForEach(HighlightShape.allCases, id: \.rawValue) { shape in
+                                Text(shape.displayName).tag(shape.rawValue)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                    }
+                    .onChangeCompat(of: highlightShape) { newValue in
+                        if let shape = HighlightShape(rawValue: newValue) {
+                            SettingsManager.shared.highlightShape = shape
+                        }
+                    }
+
+                    Divider()
+
+                    HStack {
+                        Text("Glow Effect:")
+                        Toggle("", isOn: $glowEnabled)
+                            .labelsHidden()
+                    }
+                    .onChangeCompat(of: glowEnabled) { newValue in
+                        SettingsManager.shared.glowEnabled = newValue
+                    }
+
+                    if glowEnabled {
+                        HStack {
+                            Text("Glow Radius:")
+                            // Glow radius: 5–50pt (5pt subtle halo, 50pt dramatic bloom)
+                            Slider(value: $glowRadius, in: 5...50, step: 1) {
+                                Text("Glow Radius")
+                            }
+                            Text("\(Int(glowRadius))")
+                                .frame(width: 30)
+                        }
+                        .onChangeCompat(of: glowRadius) { newValue in
+                            SettingsManager.shared.glowRadius = CGFloat(newValue)
+                        }
                     }
                 }
             }

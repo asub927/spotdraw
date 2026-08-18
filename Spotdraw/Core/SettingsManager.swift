@@ -6,6 +6,24 @@
 
 import Cocoa
 
+// MARK: - HighlightShape
+
+internal enum HighlightShape: Int, CaseIterable {
+    case circle = 0
+    case ring = 1
+    case square = 2
+    case crosshair = 3
+
+    var displayName: String {
+        switch self {
+        case .circle: "Circle"
+        case .ring: "Ring"
+        case .square: "Square"
+        case .crosshair: "Crosshair"
+        }
+    }
+}
+
 // MARK: - SettingsManager
 
 @MainActor internal final class SettingsManager {
@@ -26,6 +44,9 @@ import Cocoa
         static let spotlightDimIntensity = "spotlightDimIntensity"
         static let fadeMode = "fadeMode"
         static let fadeDuration = "fadeDuration"
+        static let glowEnabled = "glowEnabled"
+        static let glowRadius = "glowRadius"
+        static let highlightShape = "highlightShape"
     }
 
     // MARK: - Annotation Settings
@@ -63,7 +84,7 @@ import Cocoa
     var highlightSize: CGFloat {
         get {
             let val = CGFloat(UserDefaults.standard.float(forKey: Keys.highlightSize))
-            return val > 0 ? val : 40.0
+            return val > 0 ? val.clamped(to: 20...200) : 40.0
         }
         set { UserDefaults.standard.set(Float(newValue), forKey: Keys.highlightSize) }
     }
@@ -74,6 +95,31 @@ import Cocoa
             return val > 0 ? val : 0.4
         }
         set { UserDefaults.standard.set(Float(newValue), forKey: Keys.highlightOpacity) }
+    }
+
+    // MARK: - Glow Settings
+
+    var glowEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: Keys.glowEnabled) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.glowEnabled) }
+    }
+
+    var glowRadius: CGFloat {
+        get {
+            let val = CGFloat(UserDefaults.standard.float(forKey: Keys.glowRadius))
+            return val > 0 ? val.clamped(to: 5...50) : 15.0
+        }
+        set { UserDefaults.standard.set(Float(newValue), forKey: Keys.glowRadius) }
+    }
+
+    // MARK: - Highlight Shape Setting
+
+    var highlightShape: HighlightShape {
+        get {
+            let raw = UserDefaults.standard.integer(forKey: Keys.highlightShape)
+            return HighlightShape(rawValue: raw) ?? .circle
+        }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: Keys.highlightShape) }
     }
 
     // MARK: - Spotlight Settings
@@ -120,7 +166,10 @@ import Cocoa
             Keys.spotlightSize: 150.0,
             Keys.spotlightDimIntensity: 0.7,
             Keys.fadeMode: false,
-            Keys.fadeDuration: 3.0
+            Keys.fadeDuration: 3.0,
+            Keys.glowEnabled: true,
+            Keys.glowRadius: 15.0,
+            Keys.highlightShape: 0
         ])
     }
 }
