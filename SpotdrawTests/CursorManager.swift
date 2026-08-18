@@ -1,0 +1,1 @@
+../Spotdraw/Cursor/CursorManager.swift
