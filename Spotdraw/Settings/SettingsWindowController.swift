@@ -132,6 +132,7 @@ internal struct AnnotationSettingsTab: View {
     // Changes are written back via .onChange but external changes are not synced back.
     @State private var strokeWidth: Double = Double(SettingsManager.shared.strokeWidth)
     @State private var selectedColorIndex: Int = 0
+    @State private var textFontSize: Double = Double(SettingsManager.shared.textFontSize)
 
     var body: some View {
         Form {
@@ -168,6 +169,19 @@ internal struct AnnotationSettingsTab: View {
                     }
                     .onChangeCompat(of: strokeWidth) { newValue in
                         SettingsManager.shared.strokeWidth = CGFloat(newValue)
+                    }
+
+                    HStack {
+                        Text("Text Font Size:")
+                        // Text font size: 8–96pt (8pt minimum for legibility, 96pt max before it overwhelms typical displays)
+                        Slider(value: $textFontSize, in: 8...96, step: 1) {
+                            Text("Text Font Size")
+                        }
+                        Text("\(Int(textFontSize))")
+                            .frame(width: 30)
+                    }
+                    .onChangeCompat(of: textFontSize) { newValue in
+                        SettingsManager.shared.textFontSize = CGFloat(newValue)
                     }
                 }
             }

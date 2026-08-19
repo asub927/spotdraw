@@ -47,6 +47,7 @@ internal enum HighlightShape: Int, CaseIterable {
         static let glowEnabled = "glowEnabled"
         static let glowRadius = "glowRadius"
         static let highlightShape = "highlightShape"
+        static let textFontSize = "textFontSize"
     }
 
     // MARK: - Annotation Settings
@@ -72,6 +73,14 @@ internal enum HighlightShape: Int, CaseIterable {
             return val > 0 ? val : 3.0
         }
         set { UserDefaults.standard.set(newValue, forKey: Keys.fadeDuration) }
+    }
+
+    var textFontSize: CGFloat {
+        get {
+            let val = CGFloat(UserDefaults.standard.float(forKey: Keys.textFontSize))
+            return val > 0 ? val.clamped(to: 8...96) : 24.0
+        }
+        set { UserDefaults.standard.set(Float(newValue), forKey: Keys.textFontSize) }
     }
 
     // MARK: - Cursor Highlight Settings
@@ -169,7 +178,8 @@ internal enum HighlightShape: Int, CaseIterable {
             Keys.fadeDuration: 3.0,
             Keys.glowEnabled: true,
             Keys.glowRadius: 15.0,
-            Keys.highlightShape: 0
+            Keys.highlightShape: 0,
+            Keys.textFontSize: 24.0
         ])
     }
 }

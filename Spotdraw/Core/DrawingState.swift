@@ -15,6 +15,7 @@ internal enum ToolType: CaseIterable, Hashable, Sendable {
     case line
     case highlighter
     case eraser
+    case text
 
     /// The keyboard shortcut character that activates this tool.
     var keyCharacter: String {
@@ -26,6 +27,7 @@ internal enum ToolType: CaseIterable, Hashable, Sendable {
         case .line: "l"
         case .highlighter: "h"
         case .eraser: "e"
+        case .text: "t"
         }
     }
 }

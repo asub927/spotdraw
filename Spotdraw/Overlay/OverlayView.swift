@@ -21,6 +21,17 @@ import Cocoa
     private var isShiftHeld = false
     private var fadeTimer: Timer?
 
+    /// Owns the NSTextField subview lifecycle for composing/editing TextAnnotations.
+    private let textEditing = TextEditingController()
+    /// The TextAnnotation currently being dragged by the text tool, if any.
+    private var draggedTextItem: TextAnnotation?
+    /// The most recent drag point while dragging a TextAnnotation with the text tool,
+    /// used to compute the incremental delta for live visual feedback.
+    private var textDragLastPoint: CGPoint = .zero
+    /// The total delta accumulated since the text-tool drag began, applied to
+    /// DrawingState exactly once on mouseUp so only one `.move` is recorded.
+    private var textDragTotalDelta: CGSize = .zero
+
     // MARK: - Init
 
     override init(frame frameRect: NSRect) {
@@ -36,6 +47,9 @@ import Cocoa
     private func setupView() {
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
+        textEditing.onCommit = { [weak self] result in
+            self?.routeTextCommit(result)
+        }
         startFadeTimer()
     }
 
@@ -104,6 +118,8 @@ import Cocoa
             drawCurrentLine(in: context)
         case .eraser:
             break // Eraser erases on drag, no preview needed
+        case .text:
+            break // Text editing is handled by TextEditingController (task 5.4/5.5)
         }
     }
 
@@ -173,6 +189,8 @@ import Cocoa
         case .eraser:
             drawingState.removeItems(intersecting: point, threshold: 15)
             needsDisplay = true
+        case .text:
+            handleTextMouseDown(at: point, clickCount: event.clickCount)
         }
     }
 
@@ -187,6 +205,8 @@ import Cocoa
             currentShapeEndPoint = point
         case .eraser:
             drawingState.removeItems(intersecting: point, threshold: 15)
+        case .text:
+            handleTextMouseDragged(at: point)
         }
         needsDisplay = true
     }
@@ -272,8 +292,123 @@ import Cocoa
 
         case .eraser:
             break
+
+        case .text:
+            handleTextMouseUp(at: point)
         }
 
+        needsDisplay = true
+    }
+
+    // MARK: - Text Tool
+
+    /// Returns the topmost `TextAnnotation` whose bounding rectangle contains `point`,
+    /// searching in reverse so later (visually on-top) items win, matching the
+    /// hit-test convention used elsewhere (e.g. `SelectionManager.topmostHit`).
+    private func topmostTextAnnotation(at point: CGPoint) -> TextAnnotation? {
+        for item in drawingState.items.reversed() {
+            if let text = item as? TextAnnotation, text.bounds.contains(point) {
+                return text
+            }
+        }
+        return nil
+    }
+
+    private func handleTextMouseDown(at point: CGPoint, clickCount: Int) {
+        guard let hitItem = topmostTextAnnotation(at: point) else {
+            // Empty space: begin composing a new annotation anchored at the press point.
+            textEditing.begin(
+                at: point,
+                existing: nil,
+                in: self,
+                color: drawingState.activeColor,
+                fontSize: SettingsManager.shared.textFontSize
+            )
+            needsDisplay = true
+            return
+        }
+
+        if clickCount == 2 {
+            // Double-click: begin editing the existing annotation's string at its anchor.
+            // `begin` commits any prior in-progress edit first.
+            draggedTextItem = nil
+            textEditing.begin(
+                at: hitItem.anchor,
+                existing: hitItem,
+                in: self,
+                color: drawingState.activeColor,
+                fontSize: SettingsManager.shared.textFontSize
+            )
+            needsDisplay = true
+            return
+        }
+
+        // Single click inside an existing annotation: prepare for a possible drag.
+        // Editing only begins on double-click, per the double-click requirement.
+        draggedTextItem = hitItem
+        textDragLastPoint = point
+        textDragTotalDelta = .zero
+    }
+
+    private func handleTextMouseDragged(at point: CGPoint) {
+        guard let item = draggedTextItem else { return }
+
+        let incrementalDelta = CGSize(
+            width: point.x - textDragLastPoint.x,
+            height: point.y - textDragLastPoint.y
+        )
+        textDragLastPoint = point
+        textDragTotalDelta = CGSize(
+            width: textDragTotalDelta.width + incrementalDelta.width,
+            height: textDragTotalDelta.height + incrementalDelta.height
+        )
+
+        // Live visual feedback: mutate the item's offset directly, bypassing
+        // DrawingState so the undo stack is not touched on every drag event.
+        item.translate(by: incrementalDelta)
+    }
+
+    private func handleTextMouseUp(at point: CGPoint) {
+        defer {
+            draggedTextItem = nil
+            textDragLastPoint = .zero
+            textDragTotalDelta = .zero
+        }
+
+        guard let item = draggedTextItem else { return }
+
+        guard textDragTotalDelta != .zero else {
+            // Click without moving: no operation recorded, position unchanged.
+            return
+        }
+
+        // Undo the directly-applied live preview, then reapply the same total
+        // delta through DrawingState so exactly one `.move` is recorded for the
+        // whole drag, with the final position equal to start + total delta.
+        item.translate(by: CGSize(width: -textDragTotalDelta.width, height: -textDragTotalDelta.height))
+        drawingState.translate(ids: [item.id], by: textDragTotalDelta)
+    }
+
+    /// Commits the in-progress text edit, if any, routing the result to `DrawingState`
+    /// so a new annotation is added and an edited annotation replaces its original
+    /// index, recording exactly one undoable operation either way. Called by
+    /// `keyDown`'s Editing_State guard (task 5.6) when focus has not transferred;
+    /// the NSTextField delegate command path routes through `routeTextCommit`.
+    private func finishTextEditing() {
+        routeTextCommit(textEditing.commit())
+    }
+
+    private func routeTextCommit(_ result: TextCommitResult) {
+        switch result {
+        case .discarded:
+            break
+        case .created(let created):
+            drawingState.addItem(created)
+        case .edited(let original, let updated):
+            if let index = drawingState.items.firstIndex(where: { $0.id == original.id }) {
+                drawingState.replaceItem(at: index, with: updated)
+            }
+        }
         needsDisplay = true
     }
 
@@ -282,6 +417,20 @@ import Cocoa
     override var acceptsFirstResponder: Bool { true }
 
     override func keyDown(with event: NSEvent) {
+        // Editing_State must be checked before any character or modifier inspection.
+        // While editing, the NSTextField is first responder and receives keys directly;
+        // this guard covers the case where focus has not yet transferred to it.
+        if textEditing.isEditing {
+            // Raw key codes (no Carbon import elsewhere in this project):
+            // 53 = Escape, 36 = Return. Both commit; Escape must NOT invoke onDeactivate.
+            if event.keyCode == 53 || event.keyCode == 36 {
+                finishTextEditing()
+                return
+            }
+            super.keyDown(with: event)
+            return
+        }
+
         guard let characters = event.charactersIgnoringModifiers else {
             super.keyDown(with: event)
             return

@@ -158,7 +158,8 @@ import Cocoa
             ("Circle", .circle),
             ("Line", .line),
             ("Highlighter", .highlighter),
-            ("Eraser", .eraser)
+            ("Eraser", .eraser),
+            ("Text", .text)
         ]
         for (title, _) in tools {
             let item = NSMenuItem(title: title, action: #selector(selectToolAction(_:)), keyEquivalent: "")
@@ -266,7 +267,8 @@ import Cocoa
             "Circle": .circle,
             "Line": .line,
             "Highlighter": .highlighter,
-            "Eraser": .eraser
+            "Eraser": .eraser,
+            "Text": .text
         ]
         if let tool = toolMap[toolName] {
             onSelectTool?(tool)
