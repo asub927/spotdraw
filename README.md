@@ -30,6 +30,10 @@ swift run Spotdraw
 
 Grant Accessibility permission when prompted. The app appears as a pencil icon in the menu bar.
 
+## Install
+
+Download the latest release from [Releases](https://github.com/asub927/spotdraw/releases/tag/v1.0.0), or build from source above.
+
 ## Run tests
 
 ```bash
