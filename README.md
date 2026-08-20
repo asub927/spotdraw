@@ -1,6 +1,6 @@
 # Spotdraw
 
-A native macOS screen annotation & presentation tool. Draw on screen, highlight your cursor, spotlight areas, and zoom into details — all from a lightweight menu bar app.
+A native macOS screen annotation & presentation tool. Draw on screen, place text labels, select and move annotations, highlight your cursor, spotlight areas, and zoom into details — all from a lightweight menu bar app with a floating toolbar panel.
 
 **Free & open-source alternative to [Presentify](https://presentifyapp.com/).**
 
@@ -19,170 +19,212 @@ Presentify ($6/year) is the best macOS screen annotation tool for presentations,
 
 ## The Solution
 
-Spotdraw provides everything you need for presentations and screen sharing in one 440KB native app:
+Spotdraw provides everything you need for presentations and screen sharing in one native app:
 
-| Feature | Spotdraw | Presentify | Annotate | Mac Mouse Highlighter |
-|---------|:---:|:---:|:---:|:---:|
-| Freehand drawing | ✅ | ✅ | ✅ | ❌ |
-| Shapes (arrow, rect, circle, line) | ✅ | ✅ | ✅ | ❌ |
-| Highlighter | ✅ | ✅ | ✅ | ❌ |
-| Eraser | ✅ | ✅ | ✅ | ❌ |
-| Auto-fade annotations | ✅ | ✅ | ✅ | ❌ |
-| Whiteboard/blackboard | ✅ | ✅ | ✅ | ❌ |
-| Cursor highlight halo | ✅ | ✅ | ✅ | ✅ |
-| Click animations | ✅ | ✅ | ✅ | ✅ |
-| Spotlight (dim screen) | ✅ | ✅ | ❌ | Partial |
-| Zoom (magnification) | ✅ | ✅ | ❌ | ❌ |
-| Native macOS | ✅ | ✅ | ✅ | ✅ |
-| Open source | ✅ | ❌ | ✅ | ✅ |
-| App size | 440KB | ~1MB | Small | Small |
-| Free | ✅ | ❌ ($6/yr) | ✅ | ✅ |
+| Feature | Spotdraw | Presentify | Annotate |
+|---------|:---:|:---:|:---:|
+| Freehand drawing | ✅ | ✅ | ✅ |
+| Shapes (arrow, rect, circle, line) | ✅ | ✅ | ✅ |
+| Text annotations | ✅ | ✅ | ❌ |
+| Select / move / delete | ✅ | ✅ | ❌ |
+| Highlighter | ✅ | ✅ | ✅ |
+| Eraser | ✅ | ✅ | ✅ |
+| Auto-fade annotations | ✅ | ✅ | ✅ |
+| Whiteboard/blackboard | ✅ | ✅ | ✅ |
+| Cursor highlight halo | ✅ | ✅ | ✅ |
+| Click animations | ✅ | ✅ | ✅ |
+| Spotlight (dim screen) | ✅ | ✅ | ❌ |
+| Zoom (magnification) | ✅ | ✅ | ❌ |
+| Customizable shortcuts | ✅ | ✅ | ❌ |
+| Floating toolbar panel | ✅ | ✅ | ❌ |
+| Passthrough / Interactive Mode | ✅ | ✅ | ❌ |
+| Native macOS (Swift/AppKit) | ✅ | ✅ | ✅ |
+| Open source | ✅ | ❌ | ✅ |
+| Free | ✅ | ❌ ($6/yr) | ✅ |
 
 ## Features
 
 ### 🎨 Screen Annotation
-Draw directly on top of any app. Freehand pen, arrows, rectangles, circles, lines, highlighter, and eraser — all with smooth rendering via Core Graphics.
+Draw directly on top of any app. Freehand pen, arrows, rectangles, circles, lines, highlighter, and eraser — all with smooth Core Graphics rendering. Undo/redo, fade mode, and whiteboard backgrounds.
+
+### ✏️ Text Annotations
+Place text labels anywhere on screen. Click to create, double-click to edit, drag to reposition. Font size configurable in Settings.
+
+### 🔲 Select / Move / Delete
+Click to select individual items, shift-click to multi-select, drag a marquee to select by region. Move selections by dragging, delete with the Delete key. Full undo/redo support for all operations.
 
 ### 👆 Cursor Highlight
-A customizable colored halo follows your cursor. Different ripple animations for left and right clicks help your audience see every action.
+A customizable colored halo follows your cursor with ripple animations for clicks. Multiple shapes (circle, ring, square, crosshair), sizes, colors, and optional glow effect.
 
 ### 🔦 Spotlight
-Dim the entire screen except the area around your cursor. Perfect for directing attention to specific UI elements during demos.
+Dim the entire screen except the area around your cursor. Adjustable spotlight size and dim intensity.
 
 ### 🔍 Zoom
-Magnify the content under your cursor in a floating bubble. Shows fine details without changing your display settings.
+Magnify content under your cursor in a floating bubble. Adjustable zoom level (2x–4x) and bubble size. Requires Screen Recording permission.
 
-### ⌨️ Keyboard Shortcuts
+### 🎛️ Floating Toolbar Panel
+A unified dark floating panel appears at the top of the screen showing controls for all active features. Sections appear/disappear dynamically as you toggle features. Drag to reposition, dismiss with ×.
+
+### ⌨️ Fully Customizable Shortcuts
+Every action is rebindable through the Settings → Shortcuts tab. Record new bindings, clear them, or reset to defaults. Conflicts are detected and resolved interactively.
+
+**Default shortcuts:**
 
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+D` | Toggle annotation overlay |
 | `Ctrl+S` | Toggle cursor highlight |
 | `Ctrl+L` | Toggle spotlight |
-| `Ctrl+Z` | Toggle zoom |
-| `P` | Pen tool |
-| `A` | Arrow tool |
-| `R` | Rectangle tool |
-| `O` | Circle tool |
-| `L` | Line tool |
-| `H` | Highlighter |
-| `E` | Eraser |
-| `B` | Toggle whiteboard (none → white → black) |
+| `Ctrl+M` | Toggle zoom |
+| `Ctrl+Shift+S` | Cycle cursor size |
+| `Ctrl+=` / `Ctrl+-` | Zoom in/out |
+| `Ctrl+Shift+I` | Toggle Interactive Mode |
+| `P/A/R/O/L/H/E/T/S` | Tools (Pen/Arrow/Rect/Circle/Line/Highlighter/Eraser/Text/Select) |
+| `1/2/3/4/5` | Colors (Red/Blue/Green/Yellow/White) |
+| `Cmd+Z` / `Cmd+Shift+Z` | Undo / Redo |
+| `Cmd+Delete` | Clear all |
+| `Cmd+A` | Select all |
+| `Delete` | Delete selection |
+| `B` | Cycle board mode |
 | `Space` | Toggle fade mode |
-| `Esc` | Clear all annotations |
-| `Cmd+Z` | Undo |
-| `Cmd+Shift+Z` | Redo |
-| `Shift` (while drawing) | Constrain (square, circle, 45° angles) |
+| `Escape` | Deactivate overlay |
+
+### 🔀 Passthrough & Interactive Mode
+Hold Right Option to click through annotations to the app beneath while keeping annotations visible. Or enable Interactive Mode (Ctrl+Shift+I) to default to passthrough and hold the modifier only when you want to draw.
 
 ### ⚙️ Settings
-SwiftUI settings panel with tabs for General, Annotation, Cursor, and Spotlight. All preferences persist across sessions.
+Full settings window with tabs for General, Annotation, Cursor (including Zoom), Spotlight, and Shortcuts. All preferences persist across sessions.
 
-## Installation
+## Build & Run
 
-### Download (Recommended)
-
-1. Download `Spotdraw-1.0.0.dmg` from [Releases](https://github.com/asub927/spotdraw/releases/tag/v1.0.0)
-2. Open the DMG and drag Spotdraw to Applications
-3. Right-click → Open (first launch only, since app is not notarized)
-4. Grant Accessibility permission when prompted
-
-### Homebrew
-
-```bash
-brew install --cask spotdraw
-```
+### Prerequisites
+- macOS 13.0+ (Ventura or later)
+- Swift 5.9+ (Xcode 15+ Command Line Tools)
 
 ### Build from Source
 
 ```bash
 git clone https://github.com/asub927/spotdraw.git
 cd spotdraw
-swift build -c release
-./scripts/build-dmg.sh
+swift build --target Spotdraw
 ```
 
-Requires Swift 5.9+ (Xcode Command Line Tools or Xcode 15+).
+### Run
+
+```bash
+swift run Spotdraw
+```
+
+The app appears as a pencil icon in the menu bar. Grant Accessibility permission when prompted (required for global keyboard shortcuts).
+
+### Run Tests
+
+```bash
+swift build --target SpotdrawTests
+swift run SpotdrawTests
+```
+
+The test suite includes 78 tests: 13 preservation property tests, 26 property-based tests (operation stack, transforms, text, selection, shortcuts, zoom, passthrough), and 39 unit/regression tests. All tests run headlessly via the command line — no Xcode required.
+
+## Testing Instructions for Judges
+
+1. Clone the repo and run `swift run Spotdraw`
+2. Grant **Accessibility** permission (System Settings → Privacy & Security → Accessibility → add the Spotdraw binary)
+3. Test annotation: Press `Ctrl+D` → draw with mouse → try tools P/A/R/O/L/H/E/T/S
+4. Test text: Press `T`, click anywhere, type text, press Return
+5. Test select: Press `S`, click items, shift-click, drag marquee, Delete to remove, Cmd+Z to undo
+6. Test cursor highlight: `Ctrl+S` → move mouse → click to see ripple effects
+7. Test spotlight: `Ctrl+L` → move mouse → see dimmed screen with spotlight
+8. Test zoom: `Ctrl+M` → move mouse (requires Screen Recording permission — add binary via + button)
+9. Test toolbar panel: Toggle features on/off and observe the panel sections appear/disappear
+10. Test shortcuts: Open Settings → Shortcuts tab → record new bindings
+11. Test passthrough: While annotating, hold Right Option → annotations stay visible but clicks go through
+12. Run automated tests: `swift run SpotdrawTests` (expects 78/78 passing)
 
 ## Requirements
 
 - **macOS 13.0** (Ventura) or later
-- **Accessibility permission** — Required for global keyboard shortcuts and mouse event monitoring
-- **Screen Recording permission** — Required only for the Zoom feature
+- **Accessibility permission** — Required for global keyboard shortcuts
+- **Screen Recording permission** — Required only for the Zoom feature (optional)
 
 ## Architecture
 
 ```
 Spotdraw/
-├── App/                 # App lifecycle, AppDelegate
-├── Core/                # DrawingState, HotkeyManager, SettingsManager
-├── Overlay/             # Transparent overlay windows + OverlayView
+├── App/                 # AppDelegate, app lifecycle
+├── Core/                # DrawingState, DrawingOperation, SelectionManager,
+│                        # ShortcutStore, HotkeyManager, SettingsManager,
+│                        # PassthroughModifier
+├── Overlay/             # OverlayWindowController, OverlayView,
+│                        # TextEditingController, TextAnnotation,
+│                        # SelectionRenderer, ModeIndicatorView,
+│                        # ToolbarPanelController
 ├── Cursor/              # CursorManager, CursorHighlightWindow
-├── Spotlight/           # SpotlightWindow with dimming cutout
-├── Zoom/                # ZoomWindow with screen capture
-├── Settings/            # SwiftUI settings panel
-├── MenuBar/             # NSStatusItem menu bar controller
+├── Spotlight/           # SpotlightWindow
+├── Zoom/                # ZoomWindow
+├── Settings/            # SettingsWindowController, ShortcutsSettingsTab
+├── MenuBar/             # MenuBarController
 └── Resources/           # Info.plist
+
+SpotdrawTests/           # 78 automated tests (property-based + unit)
+scripts/                 # link-test-sources.sh
+.kiro/                   # Kiro specs, steering, and session history
 ```
 
 **Key design decisions:**
-- Each feature (annotation, cursor, spotlight, zoom) is an independent overlay window
-- Zero third-party dependencies — pure Apple frameworks (AppKit, SwiftUI, Core Graphics, QuartzCore)
-- Drawing uses CGContext for hardware-accelerated rendering
-- Global event monitoring via `NSEvent.addGlobalMonitorForEvents`
-- Settings persisted via `UserDefaults`
+- Zero third-party dependencies — pure Apple frameworks (AppKit, SwiftUI, Core Graphics)
+- Operation-stack undo model (supports add, remove, move, edit operations)
+- Translation via additive offset (immutable geometry preserved)
+- Selection lives on shared DrawingState, not per-view
+- Non-activating NSPanel for the toolbar (doesn't steal keyboard focus)
+- CGEvent tap for global shortcuts with ShortcutStore resolution
+- Property-based testing validates invariants across random operation sequences
 
 ## How Kiro Was Used
 
-This project was built using [Kiro](https://kiro.dev/) for spec-driven development:
+This project was built using [Kiro](https://kiro.dev/) with a spec-driven development workflow. Every major feature went through the full Kiro spec lifecycle:
 
-### Steering Files (`.kiro/steering/`)
-- **`project.md`** — Defines architecture, coding conventions, module structure, performance targets, and design decisions. Kiro uses this to maintain consistency across all generated code.
+### Spec-Driven Workflow
 
-### Specs (`.kiro/specs/`)
-- **`overlay-system.md`** — Requirements, design, and tasks for the transparent overlay window system
-- **`annotation-tools.md`** — Complete spec for all drawing tools with protocol definitions and implementation plan
-- **`cursor-spotlight.md`** — Spec for cursor highlight, click effects, and spotlight with system design
+```
+Requirements → Design → Implementation Tasks → Code → Verification
+```
 
-### Development Workflow
-1. **Spec first** — Wrote requirements and design in `.kiro/specs/` before any implementation
-2. **Steering for consistency** — The steering file ensured all code followed the same patterns
-3. **Iterative implementation** — Used Kiro CLI to implement each spec's task list
-4. **Verification** — Built and verified after each feature with `swift build`
+1. **Requirements** — Wrote detailed acceptance criteria for each feature
+2. **Design** — Kiro helped produce design documents with type definitions, state machines, and implementation strategies
+3. **Tasks** — Broke designs into ordered implementation tasks with dependency graphs
+4. **Implementation** — Kiro implemented each task, following the design exactly
+5. **Verification** — Property-based tests validated invariants at each checkpoint
 
-The `.kiro/` directory is committed at the repo root as required.
+### Specs in This Repository (`.kiro/specs/`)
+
+| Spec | What It Covers |
+|------|---------------|
+| `annotation-parity-phase-1` | Text annotation, select/move/delete, zoom activation, customizable shortcuts, passthrough & interactive mode (14 task groups, 78 tests) |
+| `panel-redesign` | Floating toolbar panel with dynamic sections |
+| `shortcut-details` | Shortcut key indicators on all menu items |
+| `annotation-parity-phase-2` | Next phase planning (multi-screen fix, multi-line text, ScreenCaptureKit) |
+| `spotdraw-shortcut-freeze-fix` | Bugfix for overlay deactivation |
+| `cursor-highlight-enhancements` | Cursor highlight improvements |
+| `swift-code-review` | Code quality pass |
+
+### What Kiro Enabled
+
+- **13 checkpoints** — Each task group had a verification gate ensuring no regressions
+- **26 property tests** — Kiro wrote property-based tests validating invariants like "selection never contains a stale identifier" and "operation-stack invertibility"
+- **5,700+ lines of production code** in a single session, all passing tests
+- **Zero manual debugging** of the spec-driven code — bugs only appeared in integration (UI rendering, system permissions)
+
+The complete `.kiro/` directory is committed to this repository, showing the full spec history.
 
 ## Performance
 
 | Metric | Value |
 |--------|-------|
-| Binary size | 432 KB |
-| App bundle size | 440 KB |
-| DMG size | 140 KB |
-| Memory usage target | < 50 MB |
+| Binary size | ~450 KB |
+| Memory usage | < 50 MB |
 | Drawing latency | < 16ms (60fps) |
-| Cursor tracking | 60fps |
-
-## Testing Instructions
-
-1. Download and install from the DMG
-2. Grant Accessibility permission (System Settings → Privacy & Security → Accessibility)
-3. Click the pencil icon in the menu bar
-4. Test annotation: `Ctrl+D` → draw with mouse → press tool keys (P/A/R/O/L/H/E)
-5. Test cursor highlight: `Ctrl+S` → move mouse → click to see ripple effects
-6. Test spotlight: `Ctrl+L` → move mouse → see dimmed screen with spotlight
-7. Test zoom: `Ctrl+Z` → move mouse → see magnified content (requires Screen Recording permission)
-8. Test whiteboard: While annotating, press `B` to cycle backgrounds
-9. Test fade mode: Press `Space` to enable, then draw — annotations fade after 3 seconds
-10. Test settings: Click menu bar → Settings...
-
-## Tech Stack
-
-- **Swift 5.9+** — Native macOS development
-- **AppKit** — Overlay windows, event monitoring, menu bar
-- **SwiftUI** — Settings panel
-- **Core Graphics** — Hardware-accelerated drawing (CGContext, CGPath)
-- **QuartzCore** — CALayer animations for cursor/click effects
-- **CGWindowListCreateImage** — Screen capture for zoom feature
+| Dependencies | 0 (pure Apple frameworks) |
 
 ## License
 

@@ -1,0 +1,90 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration test": {
+      "status": "passed",
+      "failingExample": "All 4 tests FAILED as expected (proving the bug exists):\n\nTest 1 - Ctrl+D: Ctrl+D pressed while overlay is active, but overlay remains active (isActive=true). OverlayView has no handler for Ctrl+D deactivation.\n\nTest 2 - Escape: Escape pressed while overlay is active, but overlay remains active (isActive=true). Escape only calls clearAll() (clears drawings) without calling deactivate().\n\nTest 3 - Window Level: Overlay window level is 1000 (.screenSaver), which is above .statusBar (25). This blocks the menu bar and Dock, making them completely inaccessible.\n\nTest 4 - Accessibility Permission: Even with accessibility permission, the unfixed code has no permission gating mechanism (no AccessibilityManager class exists). Overlay activated unconditionally.",
+      "lastRunTimestamp": 1786939340484
+    },
+    "3.6 Verify bug condition exploration test now passes": {
+      "status": "passed",
+      "lastRunTimestamp": 1786940730003
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test": [
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937578656
+      },
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937584815
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937578663
+      }
+    ],
+    "3.1 Create AccessibilityManager.swift": [
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937578666
+      }
+    ],
+    "3.2 Modify HotkeyManager.swift — Gate global monitor on accessibility permission": [
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937578668
+      }
+    ],
+    "3.3 Modify OverlayWindowController.swift — Lower window level and gate activation": [
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937578670
+      }
+    ],
+    "3.4 Modify OverlayView.swift — Add deactivation callback and key handling": [
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937578671
+      }
+    ],
+    "3.5 Modify AppDelegate.swift — Wire accessibility check and deactivation callback": [
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937578672
+      }
+    ],
+    "3.6 Verify bug condition exploration test now passes": [
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937578674
+      }
+    ],
+    "3.7 Verify preservation tests still pass": [
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937578675
+      }
+    ],
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "beeb7b73-c107-4418-beaf-86160185a255",
+        "chatSessionId": "sess_9a84a470-c5b1-4c60-8e3e-20c8d1fe6343",
+        "timestamp": 1786937578677
+      }
+    ]
+  }
+}
