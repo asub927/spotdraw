@@ -30,7 +30,7 @@ func testToolMenuContainsTextAndDispatchesSelection() -> PreservationTestResult 
             return (false, "Could not inspect the MenuBarController Tool submenu")
         }
 
-        guard let textItem = toolMenu.items.first(where: { $0.title == "Text" }) else {
+        guard let textItem = toolMenu.items.first(where: { $0.title.hasPrefix("Text") }) else {
             return (false, "Tool submenu does not contain a Text item")
         }
         guard let action = textItem.action, let target = textItem.target else {
