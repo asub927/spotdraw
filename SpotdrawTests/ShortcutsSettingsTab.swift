@@ -1,0 +1,1 @@
+../Spotdraw/Settings/ShortcutsSettingsTab.swift

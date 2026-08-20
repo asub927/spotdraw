@@ -48,6 +48,10 @@ internal enum HighlightShape: Int, CaseIterable {
         static let glowRadius = "glowRadius"
         static let highlightShape = "highlightShape"
         static let textFontSize = "textFontSize"
+        static let zoomLevel = "zoomLevel"
+        static let zoomBubbleSize = "zoomBubbleSize"
+        static let interactiveModeEnabled = "interactiveModeEnabled"
+        static let passthroughModifier = "passthroughModifier"
     }
 
     // MARK: - Annotation Settings
@@ -81,6 +85,42 @@ internal enum HighlightShape: Int, CaseIterable {
             return val > 0 ? val.clamped(to: 8...96) : 24.0
         }
         set { UserDefaults.standard.set(Float(newValue), forKey: Keys.textFontSize) }
+    }
+
+    // MARK: - Zoom Settings
+
+    var zoomLevel: CGFloat {
+        get {
+            let val = CGFloat(UserDefaults.standard.float(forKey: Keys.zoomLevel))
+            return val > 0 ? val.clamped(to: 2.0...4.0) : 2.0
+        }
+        set { UserDefaults.standard.set(Float(newValue.clamped(to: 2.0...4.0)), forKey: Keys.zoomLevel) }
+    }
+
+    var zoomBubbleSize: CGFloat {
+        get {
+            let val = CGFloat(UserDefaults.standard.float(forKey: Keys.zoomBubbleSize))
+            return val > 0 ? val.clamped(to: 100...300) : 200.0
+        }
+        set { UserDefaults.standard.set(Float(newValue.clamped(to: 100...300)), forKey: Keys.zoomBubbleSize) }
+    }
+
+    // MARK: - Interactive Mode Settings
+
+    /// Whether Interactive Mode is enabled. When true, the overlay defaults to
+    /// passthrough and requires the modifier to be held for capturing. Requirement 9.1.
+    var interactiveModeEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: Keys.interactiveModeEnabled) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.interactiveModeEnabled) }
+    }
+
+    /// The configured passthrough modifier. Defaults to `.rightOption`. Requirement 8.1.
+    var passthroughModifier: PassthroughModifier {
+        get {
+            let raw = UserDefaults.standard.integer(forKey: Keys.passthroughModifier)
+            return PassthroughModifier(rawValue: raw) ?? .rightOption
+        }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: Keys.passthroughModifier) }
     }
 
     // MARK: - Cursor Highlight Settings
@@ -179,7 +219,11 @@ internal enum HighlightShape: Int, CaseIterable {
             Keys.glowEnabled: true,
             Keys.glowRadius: 15.0,
             Keys.highlightShape: 0,
-            Keys.textFontSize: 24.0
+            Keys.textFontSize: 24.0,
+            Keys.zoomLevel: 2.0,
+            Keys.zoomBubbleSize: 200.0,
+            Keys.interactiveModeEnabled: false,
+            Keys.passthroughModifier: PassthroughModifier.rightOption.rawValue
         ])
     }
 }

@@ -37,6 +37,11 @@ import Cocoa
         highlightWindow?.updateAppearance()
     }
 
+    /// Tells the active spotlight window to refresh its appearance from current settings.
+    func updateSpotlightAppearance() {
+        spotlightWindow?.updateAppearance()
+    }
+
     /// Toggles the cursor highlight circle on or off.
     func toggleHighlight() {
         if isHighlightActive {
@@ -89,6 +94,14 @@ import Cocoa
 
     // MARK: - Zoom
 
+    /// Injectable screen-recording permission probe, defaulting to `CGPreflightScreenCaptureAccess`.
+    /// Injectable so the denial path is testable without manipulating system TCC state.
+    var screenRecordingProbe: () -> Bool = { CGPreflightScreenCaptureAccess() }
+
+    /// Injectable alert presenter for the denial path. Defaults to showing a modal alert.
+    /// Override to a no-op in tests to avoid blocking on `runModal()`.
+    var screenRecordingDenialHandler: (() -> Void)?
+
     /// Toggles the magnification zoom window on or off.
     func toggleZoom() {
         if isZoomActive {
@@ -98,10 +111,51 @@ import Cocoa
         }
     }
 
+    /// Increases the zoom level by 0.5 and persists (Requirement 5.4).
+    /// Clamped at 4.0 (Requirement 5.6).
+    func zoomIn() {
+        guard isZoomActive else { return }
+        let newLevel = min(settings.zoomLevel + 0.5, 4.0)
+        settings.zoomLevel = newLevel
+        updateZoomAppearance()
+    }
+
+    /// Decreases the zoom level by 0.5 and persists (Requirement 5.5).
+    /// Clamped at 2.0 (Requirement 5.7).
+    func zoomOut() {
+        guard isZoomActive else { return }
+        let newLevel = max(settings.zoomLevel - 0.5, 2.0)
+        settings.zoomLevel = newLevel
+        updateZoomAppearance()
+    }
+
+    /// Applies persisted zoom settings to the ZoomWindow (Requirement 5.9).
+    func updateZoomAppearance() {
+        zoomWindow?.zoomLevel = settings.zoomLevel
+        zoomWindow?.bubbleSize = settings.zoomBubbleSize
+    }
+
     private func activateZoom() {
+        // Gate on Screen Recording permission (Requirement 4.7)
+        guard screenRecordingProbe() else {
+            if let handler = screenRecordingDenialHandler {
+                handler()
+            } else {
+                // Request access first — this triggers the system prompt that adds
+                // the app to the Screen Recording list (works for signed apps;
+                // unsigned debug builds may need manual addition via the + button).
+                CGRequestScreenCaptureAccess()
+                presentScreenRecordingAlert()
+            }
+            return
+        }
+
         if zoomWindow == nil {
             zoomWindow = ZoomWindow()
         }
+        // Apply persisted settings before showing (Requirement 5.3)
+        zoomWindow?.zoomLevel = settings.zoomLevel
+        zoomWindow?.bubbleSize = settings.zoomBubbleSize
         zoomWindow?.show()
         isZoomActive = true
         ensureMouseMonitoring()
@@ -111,6 +165,37 @@ import Cocoa
         zoomWindow?.hide()
         isZoomActive = false
         updateMouseMonitoring()
+    }
+
+    /// Presents an alert offering to open the System Settings Screen Recording pane
+    /// when permission is absent (Requirement 4.7).
+    private func presentScreenRecordingAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Screen Recording Permission Required"
+        alert.informativeText = "SpotDraw needs Screen Recording access to capture the magnified area. Please grant access in System Settings."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    /// Stops the capture timer and releases the zoom window (Requirement 4.11).
+    func shutdown() {
+        if isZoomActive {
+            deactivateZoom()
+        }
+        if isHighlightActive {
+            deactivateHighlight()
+        }
+        if isSpotlightActive {
+            deactivateSpotlight()
+        }
     }
 
     // MARK: - Mouse Monitoring

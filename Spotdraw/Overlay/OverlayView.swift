@@ -75,9 +75,11 @@ import Cocoa
             drawBoard(in: context)
         }
 
-        // Draw all committed items
+        // Draw all committed items, skipping the one currently being edited
+        // to avoid a visual duplicate beneath the live NSTextField.
+        let editingID = textEditing.editingItem?.id
         for item in drawingState.items {
-            if item.opacity > 0 {
+            if item.opacity > 0 && item.id != editingID {
                 item.render(in: context)
             }
         }
@@ -85,6 +87,18 @@ import Cocoa
         // Draw current in-progress item
         if isDrawing {
             drawCurrentItem(in: context)
+        }
+
+        // Draw marquee and selection outlines on top of items (Requirements 2.11, 2.15, 10.7)
+        if selectDragMode == .drawingMarquee {
+            SelectionRenderer.drawMarquee(from: selectPressPoint, to: selectCurrentPoint, in: context)
+        }
+        if !drawingState.selection.isEmpty {
+            SelectionRenderer.drawSelectionOutlines(
+                selectedIDs: drawingState.selection.selectedIDs,
+                items: drawingState.items,
+                in: context
+            )
         }
     }
 
@@ -120,6 +134,8 @@ import Cocoa
             break // Eraser erases on drag, no preview needed
         case .text:
             break // Text editing is handled by TextEditingController (task 5.4/5.5)
+        case .select:
+            break // Select tool rendering handled separately (task 7.2/7.8)
         }
     }
 
@@ -191,6 +207,8 @@ import Cocoa
             needsDisplay = true
         case .text:
             handleTextMouseDown(at: point, clickCount: event.clickCount)
+        case .select:
+            handleSelectMouseDown(at: point, event: event)
         }
     }
 
@@ -207,6 +225,8 @@ import Cocoa
             drawingState.removeItems(intersecting: point, threshold: 15)
         case .text:
             handleTextMouseDragged(at: point)
+        case .select:
+            handleSelectMouseDragged(at: point)
         }
         needsDisplay = true
     }
@@ -295,6 +315,9 @@ import Cocoa
 
         case .text:
             handleTextMouseUp(at: point)
+
+        case .select:
+            handleSelectMouseUp(at: point)
         }
 
         needsDisplay = true
@@ -412,9 +435,227 @@ import Cocoa
         needsDisplay = true
     }
 
+    // MARK: - Select Tool
+
+    /// State for the select tool's mouse interaction.
+    private enum SelectDragMode {
+        case none
+        case movingSelection
+        case drawingMarquee
+    }
+
+    private var selectDragMode: SelectDragMode = .none
+    private var selectPressPoint: CGPoint = .zero
+    private var selectCurrentPoint: CGPoint = .zero
+    /// Total delta accumulated during a move drag, applied once on mouseUp.
+    private var selectMoveTotalDelta: CGSize = .zero
+    /// Last point during a move drag for incremental delta computation.
+    private var selectMoveLastPoint: CGPoint = .zero
+
+    private func handleSelectMouseDown(at point: CGPoint, event: NSEvent) {
+        let shiftHeld = event.modifierFlags.contains(.shift)
+        selectPressPoint = point
+
+        // Check if clicking on a selected item's bounding box (for move drag)
+        if let bbox = drawingState.selection.boundingBox(in: drawingState.items),
+           bbox.contains(point),
+           !drawingState.selection.isEmpty {
+            selectDragMode = .movingSelection
+            selectMoveLastPoint = point
+            selectMoveTotalDelta = .zero
+            return
+        }
+
+        // Check if clicking on an item
+        let threshold: CGFloat = 10
+        if let hitItem = SelectionManager.topmostHit(at: point, threshold: threshold, in: drawingState.items) {
+            if shiftHeld {
+                // Shift-click: toggle membership (Requirements 2.8, 2.9)
+                drawingState.selection.toggle(hitItem.id)
+            } else {
+                // Plain click: select only this item (Requirement 2.4)
+                drawingState.selection.set([hitItem.id])
+            }
+            needsDisplay = true
+            return
+        }
+
+        // Click on empty space
+        if !shiftHeld {
+            // No shift: clear the selection (Requirement 2.5)
+            drawingState.selection.clear()
+        }
+        // Start a marquee drag (Requirement 2.6)
+        selectDragMode = .drawingMarquee
+        selectCurrentPoint = point
+        needsDisplay = true
+    }
+
+    private func handleSelectMouseDragged(at point: CGPoint) {
+        switch selectDragMode {
+        case .none:
+            break
+        case .movingSelection:
+            let incrementalDelta = CGSize(
+                width: point.x - selectMoveLastPoint.x,
+                height: point.y - selectMoveLastPoint.y
+            )
+            selectMoveLastPoint = point
+            selectMoveTotalDelta = CGSize(
+                width: selectMoveTotalDelta.width + incrementalDelta.width,
+                height: selectMoveTotalDelta.height + incrementalDelta.height
+            )
+            // Live visual feedback: translate selected items directly
+            for item in drawingState.items where drawingState.selection.contains(item.id) {
+                item.translate(by: incrementalDelta)
+            }
+            needsDisplay = true
+        case .drawingMarquee:
+            selectCurrentPoint = point
+            needsDisplay = true
+        }
+    }
+
+    private func handleSelectMouseUp(at point: CGPoint) {
+        defer {
+            selectDragMode = .none
+            selectPressPoint = .zero
+            selectCurrentPoint = .zero
+        }
+
+        switch selectDragMode {
+        case .none:
+            break
+        case .movingSelection:
+            finishMoveDrag()
+        case .drawingMarquee:
+            finishMarqueeDrag()
+        }
+    }
+
+    private func finishMoveDrag() {
+        let netDx = abs(selectMoveTotalDelta.width)
+        let netDy = abs(selectMoveTotalDelta.height)
+
+        if max(netDx, netDy) < 1.0 {
+            // Below threshold: undo the live preview and record nothing (Requirement 3.10)
+            let negated = CGSize(width: -selectMoveTotalDelta.width, height: -selectMoveTotalDelta.height)
+            for item in drawingState.items where drawingState.selection.contains(item.id) {
+                item.translate(by: negated)
+            }
+        } else {
+            // Clamp: ensure at least 20pt of selection bounding box remains visible (Requirement 3.9)
+            let clampedDelta = clampMoveDelta(selectMoveTotalDelta)
+
+            // Undo the live preview translation
+            let negated = CGSize(width: -selectMoveTotalDelta.width, height: -selectMoveTotalDelta.height)
+            for item in drawingState.items where drawingState.selection.contains(item.id) {
+                item.translate(by: negated)
+            }
+
+            // Apply the clamped delta through DrawingState (records one .move)
+            let selectedIDs = Array(drawingState.selection.selectedIDs)
+            drawingState.translate(ids: selectedIDs, by: clampedDelta)
+        }
+        // Selection retained after move (Requirement 3.11)
+        selectMoveTotalDelta = .zero
+    }
+
+    /// Clamps a move delta so at least 20pt of the selection bounding box stays
+    /// within the overlay view bounds (Requirement 3.9).
+    private func clampMoveDelta(_ delta: CGSize) -> CGSize {
+        guard let bbox = drawingState.selection.boundingBox(in: drawingState.items) else {
+            return delta
+        }
+        let viewBounds = self.bounds
+        let minVisible: CGFloat = 20
+
+        // Compute where the bbox would end up with the unclamped delta
+        // (note: items already have the live preview applied, so bbox reflects
+        // the current visual position; we need to compute from the original position)
+        // Since we undo live preview before applying clamped, we compute from
+        // the original bbox (before any preview translation was applied).
+        // Actually, at this point the live preview IS already applied to the items,
+        // so bbox is the "moved" position. We need the original bbox.
+        // The original bbox = current bbox offset by -selectMoveTotalDelta
+        let originalBbox = bbox.offsetBy(dx: -selectMoveTotalDelta.width, dy: -selectMoveTotalDelta.height)
+
+        // Now compute where originalBbox + delta would land
+        var clampedDx = delta.width
+        var clampedDy = delta.height
+
+        let movedBbox = originalBbox.offsetBy(dx: clampedDx, dy: clampedDy)
+
+        // Clamp horizontal: ensure at least minVisible overlap with viewBounds
+        if movedBbox.maxX < viewBounds.minX + minVisible {
+            clampedDx = (viewBounds.minX + minVisible) - originalBbox.maxX
+        } else if movedBbox.minX > viewBounds.maxX - minVisible {
+            clampedDx = (viewBounds.maxX - minVisible) - originalBbox.minX
+        }
+
+        // Clamp vertical: ensure at least minVisible overlap with viewBounds
+        let movedBboxV = originalBbox.offsetBy(dx: clampedDx, dy: clampedDy)
+        if movedBboxV.maxY < viewBounds.minY + minVisible {
+            clampedDy = (viewBounds.minY + minVisible) - originalBbox.maxY
+        } else if movedBboxV.minY > viewBounds.maxY - minVisible {
+            clampedDy = (viewBounds.maxY - minVisible) - originalBbox.minY
+        }
+
+        return CGSize(width: clampedDx, height: clampedDy)
+    }
+
+    private func finishMarqueeDrag() {
+        let marquee = rectFromPoints(selectPressPoint, selectCurrentPoint)
+        if marquee.width > 0 || marquee.height > 0 {
+            let ids = SelectionManager.itemsIntersecting(marquee, in: drawingState.items)
+            drawingState.selection.set(ids)
+        }
+        needsDisplay = true
+    }
+
+    /// Constructs a normalized rect from two corner points.
+    private func rectFromPoints(_ a: CGPoint, _ b: CGPoint) -> CGRect {
+        let x = min(a.x, b.x)
+        let y = min(a.y, b.y)
+        let w = abs(b.x - a.x)
+        let h = abs(b.y - a.y)
+        return CGRect(x: x, y: y, width: w, height: h)
+    }
+
     // MARK: - Keyboard Events
 
     override var acceptsFirstResponder: Bool { true }
+
+    /// Routes command-key combinations through ShortcutStore before the system
+    /// responder chain can swallow them. macOS dispatches Cmd+key via
+    /// performKeyEquivalent, not keyDown, so without this override Cmd+Z,
+    /// Cmd+Shift+Z, Cmd+Delete, and Cmd+A would be silently dropped in a
+    /// borderless floating window that has no main menu.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // Only handle key-down with Command held
+        guard event.type == .keyDown, event.modifierFlags.contains(.command) else {
+            return super.performKeyEquivalent(with: event)
+        }
+
+        // Don't intercept while text editing — let the field handle Cmd+A, etc.
+        if textEditing.isEditing {
+            return super.performKeyEquivalent(with: event)
+        }
+
+        let relevantModifiers: NSEvent.ModifierFlags = [.control, .shift, .option, .command]
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask).intersection(relevantModifiers)
+
+        if let action = ShortcutStore.shared.resolve(
+            keyCode: event.keyCode,
+            modifiers: mods,
+            scope: .overlay
+        ) {
+            performShortcutAction(action)
+            return true
+        }
+
+        return super.performKeyEquivalent(with: event)
+    }
 
     override func keyDown(with event: NSEvent) {
         // Editing_State must be checked before any character or modifier inspection.
@@ -431,42 +672,84 @@ import Cocoa
             return
         }
 
-        guard let characters = event.charactersIgnoringModifiers else {
-            super.keyDown(with: event)
+        // Resolve through ShortcutStore (Requirement 6.10)
+        let relevantModifiers: NSEvent.ModifierFlags = [.control, .shift, .option, .command]
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask).intersection(relevantModifiers)
+
+        // First try overlay scope
+        if let action = ShortcutStore.shared.resolve(
+            keyCode: event.keyCode,
+            modifiers: mods,
+            scope: .overlay
+        ) {
+            performShortcutAction(action)
             return
         }
 
-        let hasCommand = event.modifierFlags.contains(.command)
-        let hasShift = event.modifierFlags.contains(.shift)
-        let hasControl = event.modifierFlags.contains(.control)
-
-        // Ctrl+D deactivates the overlay — check before the switch to prevent the event from being swallowed
-        if hasControl && characters == "d" {
-            onDeactivate?()
-            return
+        // Fallback: also resolve global shortcuts that originate from within the overlay.
+        // When the CGEvent tap is not active (e.g. no Accessibility permission), global
+        // shortcuts like toggleAnnotation still need to reach the view via keyDown.
+        if let globalAction = ShortcutStore.shared.resolve(
+            keyCode: event.keyCode,
+            modifiers: mods,
+            scope: .global
+        ) {
+            if globalAction == .toggleAnnotation {
+                onDeactivate?()
+                return
+            }
         }
 
-        switch characters {
-        case "z" where hasCommand && hasShift:
-            drawingState.redo()
-            needsDisplay = true
-        case "z" where hasCommand:
+        super.keyDown(with: event)
+    }
+
+    /// Dispatches a resolved overlay ShortcutAction.
+    private func performShortcutAction(_ action: ShortcutAction) {
+        switch action {
+        // Tools
+        case .toolPen: drawingState.activeTool = .pen
+        case .toolArrow: drawingState.activeTool = .arrow
+        case .toolRectangle: drawingState.activeTool = .rectangle
+        case .toolCircle: drawingState.activeTool = .circle
+        case .toolLine: drawingState.activeTool = .line
+        case .toolHighlighter: drawingState.activeTool = .highlighter
+        case .toolEraser: drawingState.activeTool = .eraser
+        case .toolText: drawingState.activeTool = .text
+        case .toolSelect: drawingState.activeTool = .select
+
+        // Colors
+        case .colorRed: drawingState.activeColor = .systemRed
+        case .colorBlue: drawingState.activeColor = .systemBlue
+        case .colorGreen: drawingState.activeColor = .systemGreen
+        case .colorYellow: drawingState.activeColor = .systemYellow
+        case .colorWhite: drawingState.activeColor = .white
+
+        // Actions
+        case .undo:
             drawingState.undo()
             needsDisplay = true
-        case "b":
+        case .redo:
+            drawingState.redo()
+            needsDisplay = true
+        case .clearAll:
+            clearAll()
+        case .cycleBoardMode:
             toggleBoard()
-        case " ":
+        case .toggleFadeMode:
             drawingState.fadeMode.toggle()
-        case "\u{1B}": // Escape
+        case .deleteSelection:
+            drawingState.removeSelected()
+            needsDisplay = true
+        case .selectAll:
+            drawingState.selectAll()
+            needsDisplay = true
+        case .deactivateOverlay:
             onDeactivate?()
+
+        // Global actions that reach the overlay are no-ops here — they are
+        // handled by the CGEvent tap in HotkeyManager.
         default:
-            if let tool = ToolType.allCases.first(where: { $0.keyCharacter == characters }) {
-                drawingState.activeTool = tool
-            } else if let colorShortcut = ColorShortcut.allCases.first(where: { $0.keyCharacter == characters }) {
-                drawingState.activeColor = colorShortcut.color
-            } else {
-                super.keyDown(with: event)
-            }
+            break
         }
     }
 
@@ -482,6 +765,146 @@ import Cocoa
     func clearAll() {
         drawingState.clearAll()
         needsDisplay = true
+    }
+
+    /// Called when the overlay is about to deactivate. Clears selection
+    /// (Requirement 2.13) and any in-progress editing state.
+    func prepareForDeactivation() {
+        drawingState.selection.clear()
+        if textEditing.isEditing {
+            finishTextEditing()
+        }
+        needsDisplay = true
+    }
+
+    // MARK: - Mode Indicator
+
+    private var modeIndicatorView: ModeIndicatorView?
+
+    /// Updates the mode indicator badge visibility and state.
+    /// Called by OverlayWindowController when passthrough state changes.
+    func updateModeIndicator(showIndicator: Bool, isCapturing: Bool) {
+        if showIndicator {
+            if modeIndicatorView == nil {
+                let indicator = ModeIndicatorView(frame: .zero)
+                indicator.translatesAutoresizingMaskIntoConstraints = false
+                addSubview(indicator)
+                NSLayoutConstraint.activate([
+                    indicator.centerXAnchor.constraint(equalTo: centerXAnchor),
+                    indicator.topAnchor.constraint(equalTo: topAnchor, constant: 8),
+                    indicator.widthAnchor.constraint(equalToConstant: 120),
+                    indicator.heightAnchor.constraint(equalToConstant: 32)
+                ])
+                modeIndicatorView = indicator
+            }
+            modeIndicatorView?.isCapturing = isCapturing
+            modeIndicatorView?.isHidden = false
+        } else {
+            modeIndicatorView?.isHidden = true
+        }
+    }
+
+    // MARK: - Passthrough Drain
+
+    /// Commits any in-progress drawing gesture or text edit so the overlay can
+    /// safely enter passthrough state. Requirements 8.4, 8.5.
+    func drainForPassthrough() {
+        // Commit in-progress drawing gesture at current position (Requirement 8.4)
+        if isDrawing {
+            commitCurrentDrawing()
+        }
+
+        // Commit any open text edit (Requirement 8.5)
+        if textEditing.isEditing {
+            finishTextEditing()
+        }
+
+        // Cancel any in-progress select drag
+        if selectDragMode != .none {
+            selectDragMode = .none
+            selectPressPoint = .zero
+            selectCurrentPoint = .zero
+        }
+
+        needsDisplay = true
+    }
+
+    /// Commits the current in-progress drawing stroke/shape using whatever
+    /// points have been accumulated so far, without waiting for mouseUp.
+    private func commitCurrentDrawing() {
+        isDrawing = false
+
+        switch drawingState.activeTool {
+        case .pen:
+            if currentPoints.count > 1 {
+                let stroke = FreehandStroke(
+                    points: DrawingRenderer.smoothPoints(currentPoints),
+                    color: drawingState.activeColor,
+                    lineWidth: drawingState.activeLineWidth
+                )
+                drawingState.addItem(stroke)
+            }
+            currentPoints = []
+
+        case .highlighter:
+            if currentPoints.count > 1 {
+                let stroke = FreehandStroke(
+                    points: DrawingRenderer.smoothPoints(currentPoints),
+                    color: drawingState.activeColor,
+                    lineWidth: drawingState.activeLineWidth * 4,
+                    alpha: 0.3
+                )
+                drawingState.addItem(stroke)
+            }
+            currentPoints = []
+
+        case .arrow:
+            let arrow = ArrowShape(
+                start: shapeStartPoint,
+                end: currentShapeEndPoint,
+                color: drawingState.activeColor,
+                lineWidth: drawingState.activeLineWidth
+            )
+            drawingState.addItem(arrow)
+
+        case .rectangle:
+            var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: currentShapeEndPoint)
+            if isShiftHeld {
+                let side = max(rect.width, rect.height)
+                rect.size = CGSize(width: side, height: side)
+            }
+            let shape = RectangleShape(
+                rect: rect,
+                color: drawingState.activeColor,
+                lineWidth: drawingState.activeLineWidth
+            )
+            drawingState.addItem(shape)
+
+        case .circle:
+            var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: currentShapeEndPoint)
+            if isShiftHeld {
+                let side = max(rect.width, rect.height)
+                rect.size = CGSize(width: side, height: side)
+            }
+            let shape = CircleShape(
+                rect: rect,
+                color: drawingState.activeColor,
+                lineWidth: drawingState.activeLineWidth
+            )
+            drawingState.addItem(shape)
+
+        case .line:
+            let shape = LineShape(
+                start: shapeStartPoint,
+                end: currentShapeEndPoint,
+                color: drawingState.activeColor,
+                lineWidth: drawingState.activeLineWidth
+            )
+            drawingState.addItem(shape)
+
+        case .eraser, .text, .select:
+            break
+        }
     }
 
     // MARK: - Board Toggle

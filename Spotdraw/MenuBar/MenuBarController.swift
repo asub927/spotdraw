@@ -2,7 +2,8 @@
 // NSStatusItem menu bar interface for feature toggling and tool/color selection.
 // Builds the status-bar menu with items for annotation, cursor highlight, spotlight,
 // tool and color submenus, clear-all, settings, and quit. Updates the status-bar icon
-// to reflect whether any feature is currently active.
+// to reflect whether any feature is currently active. Menu item titles are driven
+// from ShortcutStore bindings and rebuilt on ShortcutStore.didChangeNotification.
 
 import Cocoa
 
@@ -22,15 +23,25 @@ import Cocoa
     var onSelectTool: ((ToolType) -> Void)?
     var onSelectColor: ((NSColor) -> Void)?
     var onCursorSettingsChanged: (() -> Void)?
+    var onToggleZoom: (() -> Void)?
+    var onToggleInteractiveMode: (() -> Void)?
 
     private var annotationMenuItem: NSMenuItem!
     private var cursorMenuItem: NSMenuItem!
     private var spotlightMenuItem: NSMenuItem!
+    private var zoomMenuItem: NSMenuItem!
+    private var interactiveModeMenuItem: NSMenuItem!
+
+    private var shortcutObserver: Any?
 
     private var cursorHighlightColorItems: [NSMenuItem] = []
     private var cursorHighlightSizeItems: [NSMenuItem] = []
     private var cursorHighlightShapeItems: [NSMenuItem] = []
     private var cursorGlowItem: NSMenuItem!
+
+    private var toolMenuItems: [(NSMenuItem, ShortcutAction)] = []
+    private var colorMenuItems: [(NSMenuItem, ShortcutAction)] = []
+    private var clearAllMenuItem: NSMenuItem!
 
     // MARK: - Init
 
@@ -50,6 +61,15 @@ import Cocoa
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         setupStatusItem()
         setupMenu()
+
+        // Rebuild menu titles when shortcut bindings change (Requirement 6.11)
+        shortcutObserver = NotificationCenter.default.addObserver(
+            forName: ShortcutStore.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.refreshShortcutTitles()
+        }
     }
 
     // MARK: - Setup
@@ -63,17 +83,25 @@ import Cocoa
     private func setupMenu() {
         let menu = NSMenu()
 
-        annotationMenuItem = NSMenuItem(title: "Toggle Annotation (⌃D)", action: #selector(toggleAnnotationAction), keyEquivalent: "")
+        annotationMenuItem = NSMenuItem(title: menuTitle(for: .toggleAnnotation), action: #selector(toggleAnnotationAction), keyEquivalent: "")
         annotationMenuItem.target = self
         menu.addItem(annotationMenuItem)
 
-        cursorMenuItem = NSMenuItem(title: "Toggle Cursor Highlight (⌃S)", action: #selector(toggleCursorAction), keyEquivalent: "")
+        cursorMenuItem = NSMenuItem(title: menuTitle(for: .toggleCursorHighlight), action: #selector(toggleCursorAction), keyEquivalent: "")
         cursorMenuItem.target = self
         menu.addItem(cursorMenuItem)
 
-        spotlightMenuItem = NSMenuItem(title: "Toggle Spotlight (⌃L)", action: #selector(toggleSpotlightAction), keyEquivalent: "")
+        spotlightMenuItem = NSMenuItem(title: menuTitle(for: .toggleSpotlight), action: #selector(toggleSpotlightAction), keyEquivalent: "")
         spotlightMenuItem.target = self
         menu.addItem(spotlightMenuItem)
+
+        zoomMenuItem = NSMenuItem(title: menuTitle(for: .toggleZoom), action: #selector(toggleZoomAction), keyEquivalent: "")
+        zoomMenuItem.target = self
+        menu.addItem(zoomMenuItem)
+
+        interactiveModeMenuItem = NSMenuItem(title: menuTitle(for: .toggleInteractiveMode), action: #selector(toggleInteractiveModeAction), keyEquivalent: "")
+        interactiveModeMenuItem.target = self
+        menu.addItem(interactiveModeMenuItem)
 
         // Cursor Highlight settings submenu
         let cursorSubmenu = NSMenu()
@@ -151,21 +179,23 @@ import Cocoa
 
         // Tool selection submenu
         let toolSubmenu = NSMenu()
-        let tools: [(String, ToolType)] = [
-            ("Pen", .pen),
-            ("Arrow", .arrow),
-            ("Rectangle", .rectangle),
-            ("Circle", .circle),
-            ("Line", .line),
-            ("Highlighter", .highlighter),
-            ("Eraser", .eraser),
-            ("Text", .text)
+        let tools: [(String, ToolType, ShortcutAction)] = [
+            ("Pen", .pen, .toolPen),
+            ("Arrow", .arrow, .toolArrow),
+            ("Rectangle", .rectangle, .toolRectangle),
+            ("Circle", .circle, .toolCircle),
+            ("Line", .line, .toolLine),
+            ("Highlighter", .highlighter, .toolHighlighter),
+            ("Eraser", .eraser, .toolEraser),
+            ("Text", .text, .toolText),
+            ("Select", .select, .toolSelect)
         ]
-        for (title, _) in tools {
-            let item = NSMenuItem(title: title, action: #selector(selectToolAction(_:)), keyEquivalent: "")
+        for (title, _, action) in tools {
+            let item = NSMenuItem(title: menuTitle(for: action), action: #selector(selectToolAction(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = title
             toolSubmenu.addItem(item)
+            toolMenuItems.append((item, action))
         }
         let toolMenuItem = NSMenuItem(title: "Tool", action: nil, keyEquivalent: "")
         toolMenuItem.submenu = toolSubmenu
@@ -173,18 +203,19 @@ import Cocoa
 
         // Color selection submenu
         let colorSubmenu = NSMenu()
-        let colors: [(String, NSColor)] = [
-            ("Red", .systemRed),
-            ("Blue", .systemBlue),
-            ("Green", .systemGreen),
-            ("Yellow", .systemYellow),
-            ("White", .white)
+        let colors: [(String, NSColor, ShortcutAction)] = [
+            ("Red", .systemRed, .colorRed),
+            ("Blue", .systemBlue, .colorBlue),
+            ("Green", .systemGreen, .colorGreen),
+            ("Yellow", .systemYellow, .colorYellow),
+            ("White", .white, .colorWhite)
         ]
-        for (title, _) in colors {
-            let item = NSMenuItem(title: title, action: #selector(selectColorAction(_:)), keyEquivalent: "")
+        for (title, _, action) in colors {
+            let item = NSMenuItem(title: menuTitle(for: action), action: #selector(selectColorAction(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = title
             colorSubmenu.addItem(item)
+            colorMenuItems.append((item, action))
         }
         let colorMenuItem = NSMenuItem(title: "Color", action: nil, keyEquivalent: "")
         colorMenuItem.submenu = colorSubmenu
@@ -192,9 +223,9 @@ import Cocoa
 
         menu.addItem(NSMenuItem.separator())
 
-        let clearItem = NSMenuItem(title: "Clear All", action: #selector(clearAllAction), keyEquivalent: "")
-        clearItem.target = self
-        menu.addItem(clearItem)
+        clearAllMenuItem = NSMenuItem(title: menuTitle(for: .clearAll), action: #selector(clearAllAction), keyEquivalent: "")
+        clearAllMenuItem.target = self
+        menu.addItem(clearAllMenuItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -213,7 +244,7 @@ import Cocoa
 
     // MARK: - State Updates
 
-    func updateState(annotating: Bool? = nil, cursorHighlight: Bool? = nil, spotlight: Bool? = nil) {
+    func updateState(annotating: Bool? = nil, cursorHighlight: Bool? = nil, spotlight: Bool? = nil, zoom: Bool? = nil, interactiveMode: Bool? = nil) {
         if let annotating {
             annotationMenuItem.state = annotating ? .on : .off
         }
@@ -223,11 +254,18 @@ import Cocoa
         if let spotlight {
             spotlightMenuItem.state = spotlight ? .on : .off
         }
+        if let zoom {
+            zoomMenuItem?.state = zoom ? .on : .off
+        }
+        if let interactiveMode {
+            interactiveModeMenuItem?.state = interactiveMode ? .on : .off
+        }
 
         // Update icon based on any active state
         let anyActive = (annotationMenuItem.state == .on) ||
                         (cursorMenuItem.state == .on) ||
-                        (spotlightMenuItem.state == .on)
+                        (spotlightMenuItem.state == .on) ||
+                        (zoomMenuItem?.state == .on)
 
         if let button = statusItem.button {
             let symbolName = anyActive ? "pencil.tip.crop.circle.fill" : "pencil.tip.crop.circle"
@@ -248,6 +286,14 @@ import Cocoa
 
     @objc private func toggleSpotlightAction() {
         onToggleSpotlight()
+    }
+
+    @objc private func toggleZoomAction() {
+        onToggleZoom?()
+    }
+
+    @objc private func toggleInteractiveModeAction() {
+        onToggleInteractiveMode?()
     }
 
     @objc private func clearAllAction() {
@@ -325,6 +371,41 @@ import Cocoa
         cursorHighlightShapeItems.forEach { $0.state = .off }
         sender.state = .on
         onCursorSettingsChanged?()
+    }
+
+    // MARK: - Shortcut Title Helpers
+
+    /// Builds a menu item title from the action display name and its current binding.
+    private func menuTitle(for action: ShortcutAction) -> String {
+        if let binding = ShortcutStore.shared.binding(for: action) {
+            return "\(action.displayName) (\(binding.displayString))"
+        }
+        return action.displayName
+    }
+
+    /// Refreshes all menu item titles that display shortcut bindings.
+    private func refreshShortcutTitles() {
+        annotationMenuItem?.title = menuTitle(for: .toggleAnnotation)
+        cursorMenuItem?.title = menuTitle(for: .toggleCursorHighlight)
+        spotlightMenuItem?.title = menuTitle(for: .toggleSpotlight)
+        zoomMenuItem?.title = menuTitle(for: .toggleZoom)
+        interactiveModeMenuItem?.title = menuTitle(for: .toggleInteractiveMode)
+
+        for (item, action) in toolMenuItems {
+            item.title = menuTitle(for: action)
+        }
+        for (item, action) in colorMenuItems {
+            item.title = menuTitle(for: action)
+        }
+        clearAllMenuItem?.title = menuTitle(for: .clearAll)
+    }
+
+    // MARK: - Cleanup
+
+    deinit {
+        if let observer = shortcutObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 }
 

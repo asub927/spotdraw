@@ -16,20 +16,7 @@ internal enum ToolType: CaseIterable, Hashable, Sendable {
     case highlighter
     case eraser
     case text
-
-    /// The keyboard shortcut character that activates this tool.
-    var keyCharacter: String {
-        switch self {
-        case .pen: "p"
-        case .arrow: "a"
-        case .rectangle: "r"
-        case .circle: "o"
-        case .line: "l"
-        case .highlighter: "h"
-        case .eraser: "e"
-        case .text: "t"
-        }
-    }
+    case select
 }
 
 // MARK: - BoardMode
@@ -61,17 +48,6 @@ extension BoardMode: @unchecked Sendable {}
 /// Maps number keys to stroke color presets for quick switching during annotation.
 internal enum ColorShortcut: CaseIterable {
     case red, blue, green, yellow, white
-
-    /// The keyboard character that activates this color.
-    var keyCharacter: String {
-        switch self {
-        case .red: "1"
-        case .blue: "2"
-        case .green: "3"
-        case .yellow: "4"
-        case .white: "5"
-        }
-    }
 
     /// The NSColor associated with this shortcut.
     var color: NSColor {
@@ -125,7 +101,16 @@ internal final class DrawingState {
     private var undoStack: [DrawingOperation] = []
     private var redoStack: [DrawingOperation] = []
 
-    var activeTool: ToolType = .pen
+    /// The selection lives on DrawingState (not OverlayView) because a single
+    /// DrawingState instance is shared across every per-screen view.
+    let selection = SelectionManager()
+
+    var activeTool: ToolType = .pen {
+        didSet {
+            // Requirement 2.12: clear selection when switching away from select tool.
+            if activeTool != .select { selection.clear() }
+        }
+    }
     var activeColor: NSColor = .systemRed
     var activeLineWidth: CGFloat = 3.0
     var boardMode: BoardMode = .none
@@ -146,6 +131,7 @@ internal final class DrawingState {
         guard let operation = undoStack.popLast() else { return }
         operation.undo(applyingTo: &items)
         redoStack.append(operation)
+        pruneSelection()
     }
 
     /// Reapplies the most recently undone operation, moving it back to the undo stack.
@@ -153,6 +139,7 @@ internal final class DrawingState {
         guard let operation = redoStack.popLast() else { return }
         operation.redo(applyingTo: &items)
         undoStack.append(operation)
+        pruneSelection()
     }
 
     /// Removes all items and clears the undo/redo history.
@@ -164,6 +151,7 @@ internal final class DrawingState {
         items.removeAll()
         undoStack.removeAll()
         redoStack.removeAll()
+        selection.clear()
     }
 
     /// Removes the item at the given index, if valid, recording a `.remove` operation.
@@ -177,7 +165,11 @@ internal final class DrawingState {
 
     /// Removes all items whose stroke path intersects the given point within `threshold` points.
     func removeItems(intersecting point: CGPoint, threshold: CGFloat = 10) {
+        let removedIDs = items.filter { $0.hitTestTranslated(point: point, threshold: threshold) }.map { $0.id }
         items.removeAll { $0.hitTestTranslated(point: point, threshold: threshold) }
+        for id in removedIDs {
+            selection.remove(id)
+        }
     }
 
     /// Translates every item whose `id` is in `ids` by `offset`, recording a `.move` operation.
@@ -204,17 +196,52 @@ internal final class DrawingState {
         items.first { $0.id == id }
     }
 
+    /// Removes every Drawing_Item in the selection and records one undoable `.remove`
+    /// operation. Empty selection is a no-op that records nothing (Requirement 3.7).
+    func removeSelected() {
+        guard !selection.isEmpty else { return }
+        var entries: [(index: Int, item: any DrawingItem)] = []
+        for (index, item) in items.enumerated() where selection.contains(item.id) {
+            entries.append((index: index, item: item))
+        }
+        guard !entries.isEmpty else { return }
+        // Remove in reverse index order to avoid index invalidation
+        for entry in entries.reversed() {
+            items.remove(at: entry.index)
+        }
+        selection.clear()
+        undoStack.append(.remove(entries: entries))
+        redoStack.removeAll()
+    }
+
+    /// Sets the selection to every DrawingItem in the item list (Requirement 2.10).
+    /// Only effective while the select tool is active.
+    func selectAll() {
+        guard activeTool == .select else { return }
+        selection.set(Set(items.map { $0.id }))
+    }
+
     // MARK: - Shared removal helper
 
-    /// Removes items at the given indices from `items`.
+    /// Removes items at the given indices from `items` and prunes the selection.
     ///
-    /// Every item-removing mutation routes through this single helper so that a
-    /// later phase's selection-pruning logic has one place to attach rather than
-    /// being scattered across removal call sites. No selection exists yet, so
-    /// this is a plain removal for now.
+    /// Every item-removing mutation routes through this single helper so that
+    /// selection pruning holds by construction rather than being scattered across
+    /// removal call sites. Requirement 2.14.
     private func removeItems(at indices: [Int]) {
         for index in indices.sorted(by: >) where items.indices.contains(index) {
+            selection.remove(items[index].id)
             items.remove(at: index)
+        }
+    }
+
+    /// Ensures the selection contains only IDs that are currently in the item list.
+    /// Called after undo/redo which bypass the removeItems(at:) helper.
+    private func pruneSelection() {
+        let liveIDs = Set(items.map { $0.id })
+        let stale = selection.selectedIDs.subtracting(liveIDs)
+        for id in stale {
+            selection.remove(id)
         }
     }
 }

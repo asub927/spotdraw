@@ -62,6 +62,13 @@ import Cocoa
         window?.orderOut(nil)
     }
 
+    /// Refreshes the spotlight view's size and dim intensity from current settings.
+    func updateAppearance() {
+        spotlightView?.spotlightSize = settings.spotlightSize
+        spotlightView?.dimIntensity = settings.spotlightDimIntensity
+        spotlightView?.needsDisplay = true
+    }
+
     func updatePosition(to point: NSPoint) {
         guard let spotlightView, let window else { return }
         // Convert screen coordinates to view coordinates

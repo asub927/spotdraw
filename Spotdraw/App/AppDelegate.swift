@@ -19,6 +19,7 @@ import Cocoa
     private var hotkeyManager: HotkeyManager!
     private var settingsManager: SettingsManager!
     private var settingsWindowController: SettingsWindowController!
+    private var toolbarPanel = ToolbarPanelController()
     private let sizePresets: [CGFloat] = [30, 50, 100, 150]
 
     // MARK: - App Lifecycle
@@ -40,6 +41,7 @@ import Cocoa
 
     func applicationWillTerminate(_ notification: Notification) {
         hotkeyManager.removeAllMonitors()
+        cursorManager.shutdown()
     }
 
     // MARK: - Setup
@@ -65,6 +67,12 @@ import Cocoa
             guard let self, self.cursorManager.isHighlightActive else { return }
             self.cursorManager.updateHighlightAppearance()
         }
+        menuBarController.onToggleZoom = { [weak self] in
+            self?.toggleZoom()
+        }
+        menuBarController.onToggleInteractiveMode = { [weak self] in
+            self?.toggleInteractiveMode()
+        }
     }
 
     private func setupOverlay() {
@@ -80,17 +88,43 @@ import Cocoa
 
     private func setupHotkeys() {
         hotkeyManager = HotkeyManager()
-        hotkeyManager.register(shortcut: .toggleAnnotation) { [weak self] in
+
+        // Load persisted shortcut bindings
+        ShortcutStore.shared.loadFromDefaults()
+
+        // Configure passthrough modifier from persisted settings
+        hotkeyManager.passthroughModifier = SettingsManager.shared.passthroughModifier
+        hotkeyManager.onPassthroughModifierChange = { [weak self] held in
+            self?.overlayController.setPassthroughModifierHeld(held)
+        }
+
+        // Apply persisted Interactive Mode state to controller
+        overlayController.interactiveModeEnabled = SettingsManager.shared.interactiveModeEnabled
+
+        // Register handlers for all global ShortcutActions
+        hotkeyManager.register(action: .toggleAnnotation) { [weak self] in
             self?.toggleAnnotation()
         }
-        hotkeyManager.register(shortcut: .toggleCursorHighlight) { [weak self] in
+        hotkeyManager.register(action: .toggleCursorHighlight) { [weak self] in
             self?.toggleCursorHighlight()
         }
-        hotkeyManager.register(shortcut: .toggleSpotlight) { [weak self] in
+        hotkeyManager.register(action: .toggleSpotlight) { [weak self] in
             self?.toggleSpotlight()
         }
-        hotkeyManager.register(shortcut: .cycleCursorSize) { [weak self] in
+        hotkeyManager.register(action: .toggleZoom) { [weak self] in
+            self?.toggleZoom()
+        }
+        hotkeyManager.register(action: .cycleCursorSize) { [weak self] in
             self?.cycleCursorSize()
+        }
+        hotkeyManager.register(action: .zoomIn) { [weak self] in
+            self?.cursorManager.zoomIn()
+        }
+        hotkeyManager.register(action: .zoomOut) { [weak self] in
+            self?.cursorManager.zoomOut()
+        }
+        hotkeyManager.register(action: .toggleInteractiveMode) { [weak self] in
+            self?.toggleInteractiveMode()
         }
     }
 
@@ -107,17 +141,35 @@ import Cocoa
         }
 
         overlayController.toggle()
+
+        // Install/teardown passthrough modifier monitor with overlay lifecycle (Requirement 8.11)
+        if overlayController.isActive {
+            hotkeyManager.passthroughModifier = SettingsManager.shared.passthroughModifier
+            hotkeyManager.installPassthroughMonitor()
+        } else {
+            hotkeyManager.teardownPassthroughMonitor()
+        }
+
         menuBarController.updateState(annotating: overlayController.isActive)
+        updateToolbarPanel()
     }
 
     private func toggleCursorHighlight() {
         cursorManager.toggleHighlight()
         menuBarController.updateState(cursorHighlight: cursorManager.isHighlightActive)
+        updateToolbarPanel()
     }
 
     private func toggleSpotlight() {
         cursorManager.toggleSpotlight()
         menuBarController.updateState(spotlight: cursorManager.isSpotlightActive)
+        updateToolbarPanel()
+    }
+
+    private func toggleZoom() {
+        cursorManager.toggleZoom()
+        menuBarController.updateState(zoom: cursorManager.isZoomActive)
+        updateToolbarPanel()
     }
 
     private func clearAll() {
@@ -140,6 +192,30 @@ import Cocoa
         if cursorManager.isHighlightActive {
             cursorManager.updateHighlightAppearance()
         }
+    }
+
+    private func toggleInteractiveMode() {
+        let settings = SettingsManager.shared
+        settings.interactiveModeEnabled.toggle()
+        let enabled = settings.interactiveModeEnabled
+        overlayController.interactiveModeEnabled = enabled
+        menuBarController.updateState(interactiveMode: enabled)
+    }
+
+    // MARK: - Toolbar Panel
+
+    private func updateToolbarPanel() {
+        let features = FeatureState(
+            annotationActive: overlayController.isActive,
+            highlightActive: cursorManager.isHighlightActive,
+            spotlightActive: cursorManager.isSpotlightActive,
+            zoomActive: cursorManager.isZoomActive
+        )
+        toolbarPanel.update(
+            features: features,
+            drawingState: overlayController.isActive ? overlayController.drawingState : nil,
+            cursorManager: cursorManager
+        )
     }
 
     // MARK: - Accessibility

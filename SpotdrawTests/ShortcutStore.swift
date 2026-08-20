@@ -1,0 +1,1 @@
+../Spotdraw/Core/ShortcutStore.swift

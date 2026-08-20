@@ -86,6 +86,9 @@ internal struct SettingsView: View {
             SpotlightSettingsTab()
                 .tabItem { Label("Spotlight", systemImage: "light.max") }
                 .tag(3)
+            ShortcutsSettingsTab()
+                .tabItem { Label("Shortcuts", systemImage: "keyboard") }
+                .tag(4)
         }
         .padding(20)
         .frame(minWidth: 480, minHeight: 320)
@@ -99,6 +102,8 @@ internal struct GeneralSettingsTab: View {
     // Changes are written back via .onChange but external changes are not synced back.
     @State private var fadeDuration: Double = SettingsManager.shared.fadeDuration
     @State private var launchAtLogin: Bool = false
+    @State private var interactiveModeEnabled: Bool = SettingsManager.shared.interactiveModeEnabled
+    @State private var passthroughModifierIndex: Int = SettingsManager.shared.passthroughModifier.rawValue
 
     var body: some View {
         Form {
@@ -118,6 +123,41 @@ internal struct GeneralSettingsTab: View {
                     }
 
                     Toggle("Launch at Login", isOn: $launchAtLogin)
+
+                    Divider()
+
+                    // Interactive Mode (Requirement 9.2)
+                    Toggle("Interactive Mode", isOn: $interactiveModeEnabled)
+                        .onChangeCompat(of: interactiveModeEnabled) { newValue in
+                            SettingsManager.shared.interactiveModeEnabled = newValue
+                        }
+                    Text("When enabled, the overlay passes mouse events through by default. Hold the passthrough modifier to interact with annotations.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    // Passthrough modifier picker (Requirement 8.1)
+                    HStack {
+                        Text("Passthrough Modifier:")
+                        Picker("", selection: $passthroughModifierIndex) {
+                            ForEach(PassthroughModifier.allCases, id: \.rawValue) { modifier in
+                                Text(modifier.displayName).tag(modifier.rawValue)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: 160)
+                    }
+                    .onChangeCompat(of: passthroughModifierIndex) { newValue in
+                        if let modifier = PassthroughModifier(rawValue: newValue) {
+                            SettingsManager.shared.passthroughModifier = modifier
+                        }
+                    }
+
+                    if passthroughModifierIndex == PassthroughModifier.fn.rawValue {
+                        Text("Note: macOS may intercept the Fn/Globe key for system features. Some keyboards report it inconsistently.")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
                 }
             }
         }
@@ -201,6 +241,8 @@ internal struct CursorSettingsTab: View {
     @State private var glowEnabled: Bool = SettingsManager.shared.glowEnabled
     @State private var glowRadius: Double = Double(SettingsManager.shared.glowRadius)
     @State private var highlightShape: Int = SettingsManager.shared.highlightShape.rawValue
+    @State private var zoomLevel: Double = Double(SettingsManager.shared.zoomLevel)
+    @State private var zoomBubbleSize: Double = Double(SettingsManager.shared.zoomBubbleSize)
 
     var body: some View {
         Form {
@@ -292,6 +334,36 @@ internal struct CursorSettingsTab: View {
                         .onChangeCompat(of: glowRadius) { newValue in
                             SettingsManager.shared.glowRadius = CGFloat(newValue)
                         }
+                    }
+
+                    Divider()
+
+                    // Zoom section (Requirement 5.8)
+                    Text("Zoom")
+                        .font(.headline)
+
+                    HStack {
+                        Text("Zoom Level:")
+                        Slider(value: $zoomLevel, in: 2.0...4.0, step: 0.5) {
+                            Text("Zoom Level")
+                        }
+                        Text("\(zoomLevel, specifier: "%.1f")x")
+                            .frame(width: 40)
+                    }
+                    .onChangeCompat(of: zoomLevel) { newValue in
+                        SettingsManager.shared.zoomLevel = CGFloat(newValue)
+                    }
+
+                    HStack {
+                        Text("Bubble Size:")
+                        Slider(value: $zoomBubbleSize, in: 100...300, step: 10) {
+                            Text("Bubble Size")
+                        }
+                        Text("\(Int(zoomBubbleSize))")
+                            .frame(width: 40)
+                    }
+                    .onChangeCompat(of: zoomBubbleSize) { newValue in
+                        SettingsManager.shared.zoomBubbleSize = CGFloat(newValue)
                     }
                 }
             }

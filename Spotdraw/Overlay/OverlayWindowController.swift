@@ -24,8 +24,84 @@ private final class KeyableWindow: NSWindow {
 
     private var overlayWindows: [NSWindow] = []
     private(set) var isActive = false
-    private var drawingState = DrawingState()
+    private(set) var drawingState = DrawingState()
     private var screenObserver: Any?
+
+    // MARK: - Passthrough State Machine
+
+    /// Whether the overlay is currently in passthrough (not capturing mouse input).
+    private(set) var isPassthrough: Bool = false
+
+    /// Whether the configured passthrough modifier is currently held.
+    private(set) var modifierHeld: Bool = false
+
+    /// Whether Interactive Mode is enabled. When enabled, the overlay defaults
+    /// to passthrough and capturing requires the modifier to be held.
+    var interactiveModeEnabled: Bool = false {
+        didSet {
+            guard isActive else { return }
+            applyMouseAcceptance()
+        }
+    }
+
+    /// Updates the held state of the passthrough modifier and recalculates
+    /// mouse acceptance. Called by HotkeyManager's flagsChanged monitor.
+    func setPassthroughModifierHeld(_ held: Bool) {
+        modifierHeld = held
+        guard isActive else { return }
+        applyMouseAcceptance()
+    }
+
+    /// The single writer of `ignoresMouseEvents` and cursor state across all
+    /// overlay windows. Derives everything from activation, mode, and modifier.
+    private func applyMouseAcceptance() {
+        let capturesMouse = isActive && (interactiveModeEnabled ? modifierHeld : !modifierHeld)
+
+        let wasCapturing = !isPassthrough
+        isPassthrough = !capturesMouse
+
+        // If transitioning from capturing → passthrough, drain in-flight interaction first
+        if wasCapturing && isPassthrough {
+            drainInFlightInteraction()
+        }
+
+        overlayWindows.forEach { window in
+            window.ignoresMouseEvents = !capturesMouse
+        }
+
+        if capturesMouse {
+            NSCursor.crosshair.set()
+        } else {
+            NSCursor.arrow.set()
+        }
+
+        // Update mode indicator on all views
+        overlayWindows.forEach { window in
+            if let view = window.contentView as? OverlayView {
+                view.updateModeIndicator(
+                    showIndicator: shouldShowModeIndicator,
+                    isCapturing: capturesMouse
+                )
+            }
+        }
+    }
+
+    /// Whether the mode indicator badge should be visible.
+    /// Shown when: overlay active AND (Interactive Mode enabled OR not capturing).
+    private var shouldShowModeIndicator: Bool {
+        guard isActive else { return false }
+        return interactiveModeEnabled || isPassthrough
+    }
+
+    /// Drains in-flight drawing gestures and text edits on all overlay views
+    /// before entering passthrough state.
+    private func drainInFlightInteraction() {
+        overlayWindows.forEach { window in
+            if let view = window.contentView as? OverlayView {
+                view.drainForPassthrough()
+            }
+        }
+    }
 
     /// Callback invoked when the user requests deactivation from within the overlay (Ctrl+D or Escape).
     /// Set by AppDelegate to wire view-level deactivation back to the global toggle action.
@@ -73,21 +149,26 @@ private final class KeyableWindow: NSWindow {
         NSApp.activate(ignoringOtherApps: true)
 
         overlayWindows.forEach { window in
-            window.ignoresMouseEvents = false
             window.makeKeyAndOrderFront(nil)
             window.makeFirstResponder(window.contentView)
         }
         isActive = true
-        NSCursor.crosshair.set()
+        applyMouseAcceptance()
     }
 
     /// Hides overlay windows and restores the default cursor.
     func deactivate() {
+        // Requirement 8.10: deactivation while modifier held → ignore mouse events, remove indicator.
         overlayWindows.forEach { window in
             window.ignoresMouseEvents = true
             window.orderBack(nil)
+            if let view = window.contentView as? OverlayView {
+                view.updateModeIndicator(showIndicator: false, isCapturing: false)
+            }
         }
         isActive = false
+        isPassthrough = false
+        modifierHeld = false
         NSCursor.arrow.set()
     }
 
@@ -183,7 +264,14 @@ private final class KeyableWindow: NSWindow {
         overlayWindows.forEach { $0.close() }
         overlayWindows.removeAll()
         if wasActive {
-            activate()
+            createOverlayWindows()
+            NSApp.activate(ignoringOtherApps: true)
+            overlayWindows.forEach { window in
+                window.makeKeyAndOrderFront(nil)
+                window.makeFirstResponder(window.contentView)
+            }
+            // Requirement 8.12: re-apply current passthrough state to new windows.
+            applyMouseAcceptance()
         }
     }
 
