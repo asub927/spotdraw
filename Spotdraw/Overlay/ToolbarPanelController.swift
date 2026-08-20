@@ -5,6 +5,94 @@
 
 import Cocoa
 
+// MARK: - Custom Tooltip Window
+
+/// Manages a small floating window that displays tooltip text near the cursor.
+/// Used because NSToolTip does not fire for .nonactivatingPanel + .borderless windows.
+@MainActor private final class TooltipWindow {
+    static let shared = TooltipWindow()
+
+    private var window: NSWindow?
+    private var textField: NSTextField?
+    private var hideTimer: Timer?
+    private var showTimer: Timer?
+
+    func show(_ text: String, near point: NSPoint) {
+        showTimer?.invalidate()
+        showTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.displayTooltip(text, near: point)
+            }
+        }
+    }
+
+    private func displayTooltip(_ text: String, near point: NSPoint) {
+        hide()
+
+        let font = NSFont.systemFont(ofSize: 11)
+        let attrs: [NSAttributedString.Key: Any] = [.font: font]
+        let textSize = (text as NSString).size(withAttributes: attrs)
+        let hPadding: CGFloat = 12
+        let vPadding: CGFloat = 6
+        // Add extra width buffer to prevent NSTextField internal clipping
+        let width = ceil(textSize.width) + hPadding * 2 + 4
+        let height = ceil(textSize.height) + vPadding * 2
+
+        let frame = NSRect(
+            x: point.x - width / 2,
+            y: point.y - height - 4,
+            width: width,
+            height: height
+        )
+
+        let win = NSWindow(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: false)
+        win.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.floatingWindow)) + 10)
+        win.backgroundColor = .clear
+        win.isOpaque = false
+        win.hasShadow = true
+        win.ignoresMouseEvents = true
+        win.collectionBehavior = [.canJoinAllSpaces]
+        win.isReleasedWhenClosed = false
+
+        let contentView = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        contentView.wantsLayer = true
+        contentView.layer?.backgroundColor = NSColor(white: 0.2, alpha: 0.95).cgColor
+        contentView.layer?.cornerRadius = 4
+
+        // Use the full content width for the label so text is never clipped
+        let label = NSTextField(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        label.isEditable = false
+        label.isBordered = false
+        label.isSelectable = false
+        label.drawsBackground = false
+        label.backgroundColor = .clear
+        label.textColor = .white
+        label.font = font
+        label.stringValue = text
+        label.alignment = .center
+        label.lineBreakMode = .byClipping
+        label.cell?.truncatesLastVisibleLine = false
+        contentView.addSubview(label)
+
+        win.contentView = contentView
+        win.orderFrontRegardless()
+        self.window = win
+
+        hideTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.hide() }
+        }
+    }
+
+    func hide() {
+        showTimer?.invalidate()
+        showTimer = nil
+        hideTimer?.invalidate()
+        hideTimer = nil
+        window?.orderOut(nil)
+        window = nil
+    }
+}
+
 // MARK: - FeatureState
 
 /// Describes which SpotDraw features are currently active so the toolbar can
@@ -159,6 +247,7 @@ internal struct FeatureState: Equatable {
         panelWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panelWindow.isReleasedWhenClosed = false
         panelWindow.isMovableByWindowBackground = false
+        panelWindow.acceptsMouseMovedEvents = true
         panelWindow.contentView = content
 
         self.panel = panelWindow
@@ -355,6 +444,20 @@ internal struct FeatureState: Equatable {
         setupSubviews()
     }
 
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas {
+            removeTrackingArea(area)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) not supported")
     }
@@ -446,7 +549,7 @@ internal struct FeatureState: Equatable {
             btn.onTap = { [weak self] sc in self?.annotationColorTapped(sc) }
             addSubview(btn)
             annotationColorButtons.append(btn)
-            x += 20 + itemSpacing
+            x += 30 + itemSpacing
         }
         x -= itemSpacing
         x += itemSpacing
@@ -475,7 +578,7 @@ internal struct FeatureState: Equatable {
             btn.onTap = { [weak self] t in self?.annotationToolTapped(t) }
             addSubview(btn)
             annotationToolButtons.append(btn)
-            x += 24 + itemSpacing
+            x += 36 + itemSpacing
         }
         x -= itemSpacing
 
@@ -911,14 +1014,32 @@ internal struct FeatureState: Equatable {
     var isActive: Bool = false { didSet { needsDisplay = true } }
     var onTap: ((ColorShortcut) -> Void)?
 
+    private let tooltipText: String?
+
     init(frame frameRect: NSRect, swatchColor: NSColor, shortcut: ColorShortcut, tooltip: String? = nil) {
         self.swatchColor = swatchColor
         self.shortcut = shortcut
+        self.tooltipText = tooltip
         super.init(frame: frameRect)
         wantsLayer = true
-        if let tooltip { self.toolTip = tooltip }
         setAccessibilityRole(.button)
         setAccessibilityLabel(tooltip ?? "Color swatch")
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self, userInfo: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        guard let tip = tooltipText else { return }
+        let screenPoint = window?.convertPoint(toScreen: convert(bounds.origin, to: nil)) ?? .zero
+        TooltipWindow.shared.show(tip, near: NSPoint(x: screenPoint.x + bounds.width / 2, y: screenPoint.y))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        TooltipWindow.shared.hide()
     }
 
     required init?(coder: NSCoder) {
@@ -955,14 +1076,32 @@ internal struct FeatureState: Equatable {
     var isActive: Bool = false { didSet { needsDisplay = true } }
     var onTap: ((ToolType) -> Void)?
 
+    private let tooltipText: String?
+
     init(frame frameRect: NSRect, tool: ToolType, symbolName: String, tooltip: String? = nil) {
         self.tool = tool
         self.symbolName = symbolName
+        self.tooltipText = tooltip
         super.init(frame: frameRect)
         wantsLayer = true
-        if let tooltip { self.toolTip = tooltip }
         setAccessibilityRole(.button)
         setAccessibilityLabel(tooltip ?? "\(tool) tool")
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self, userInfo: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        guard let tip = tooltipText else { return }
+        let screenPoint = window?.convertPoint(toScreen: convert(bounds.origin, to: nil)) ?? .zero
+        TooltipWindow.shared.show(tip, near: NSPoint(x: screenPoint.x + bounds.width / 2, y: screenPoint.y))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        TooltipWindow.shared.hide()
     }
 
     required init?(coder: NSCoder) {
@@ -1015,14 +1154,32 @@ internal struct FeatureState: Equatable {
     var isActive: Bool = false { didSet { needsDisplay = true } }
     var onTap: ((NSColor) -> Void)?
 
+    private let tooltipText: String?
+
     init(frame frameRect: NSRect, swatchColor: NSColor, colorName: String, tooltip: String? = nil) {
         self.swatchColor = swatchColor
         self.colorName = colorName
+        self.tooltipText = tooltip
         super.init(frame: frameRect)
         wantsLayer = true
-        if let tooltip { self.toolTip = tooltip }
         setAccessibilityRole(.button)
         setAccessibilityLabel(tooltip ?? "\(colorName) color")
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self, userInfo: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        guard let tip = tooltipText else { return }
+        let screenPoint = window?.convertPoint(toScreen: convert(bounds.origin, to: nil)) ?? .zero
+        TooltipWindow.shared.show(tip, near: NSPoint(x: screenPoint.x + bounds.width / 2, y: screenPoint.y))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        TooltipWindow.shared.hide()
     }
 
     required init?(coder: NSCoder) {
@@ -1059,14 +1216,32 @@ internal struct FeatureState: Equatable {
     var isActive: Bool = false { didSet { needsDisplay = true } }
     var onTap: ((Int) -> Void)?
 
+    private let tooltipText: String?
+
     init(frame frameRect: NSRect, label: String, tag: Int, tooltip: String? = nil) {
         self.label = label
         self.buttonTag = tag
+        self.tooltipText = tooltip
         super.init(frame: frameRect)
         wantsLayer = true
-        if let tooltip { self.toolTip = tooltip }
         setAccessibilityRole(.button)
         setAccessibilityLabel(tooltip ?? label)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self, userInfo: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        guard let tip = tooltipText else { return }
+        let screenPoint = window?.convertPoint(toScreen: convert(bounds.origin, to: nil)) ?? .zero
+        TooltipWindow.shared.show(tip, near: NSPoint(x: screenPoint.x + bounds.width / 2, y: screenPoint.y))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        TooltipWindow.shared.hide()
     }
 
     required init?(coder: NSCoder) {
@@ -1116,14 +1291,32 @@ internal struct FeatureState: Equatable {
     var isActive: Bool = false { didSet { needsDisplay = true } }
     var onTap: ((HighlightShape) -> Void)?
 
+    private let tooltipText: String?
+
     init(frame frameRect: NSRect, shape: HighlightShape, symbolName: String, tooltip: String? = nil) {
         self.shape = shape
         self.symbolName = symbolName
+        self.tooltipText = tooltip
         super.init(frame: frameRect)
         wantsLayer = true
-        if let tooltip { self.toolTip = tooltip }
         setAccessibilityRole(.button)
         setAccessibilityLabel(tooltip ?? shape.displayName)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self, userInfo: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        guard let tip = tooltipText else { return }
+        let screenPoint = window?.convertPoint(toScreen: convert(bounds.origin, to: nil)) ?? .zero
+        TooltipWindow.shared.show(tip, near: NSPoint(x: screenPoint.x + bounds.width / 2, y: screenPoint.y))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        TooltipWindow.shared.hide()
     }
 
     required init?(coder: NSCoder) {
