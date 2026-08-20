@@ -1,19 +1,21 @@
 # Spotdraw
 
-A native macOS screen annotation and presentation tool. Free and open-source alternative to [Presentify](https://presentifyapp.com/).
+**Draw on your screen. Highlight your cursor. Spotlight what matters. Zoom into details.** One native macOS app replaces the paid tools presenters have been buying for years.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![macOS](https://img.shields.io/badge/macOS-13.0+-blue.svg)](https://www.apple.com/macos/)
 [![Built with Kiro](https://img.shields.io/badge/Built%20with-Kiro-blueviolet.svg)](https://kiro.dev/)
 
-## Why it matters
+## Why it exists
 
-Presentify costs $6/year and is closed-source. Open-source alternatives only cover one or two features. Spotdraw combines all four pillars in one native app:
+Commercial screen annotation tools charge annual fees, lock you into closed ecosystems, and still only cover part of what presenters need. Open-source alternatives are fragmented: one tool draws, another highlights the cursor, none do everything.
 
-- **Annotation**: Pen, arrow, rectangle, circle, line, highlighter, eraser, text
-- **Cursor highlight**: Colored halo with click animations
-- **Spotlight**: Dim the screen except around your cursor
-- **Zoom**: Magnify content in a floating bubble
+**Spotdraw does.** Four features in a single 450KB native binary:
+
+- **Annotation.** Pen, arrow, rectangle, circle, line, highlighter, eraser, text. Select, move, delete, undo.
+- **Cursor highlight.** Colored halo with click animations. Configurable shape, size, glow.
+- **Spotlight.** Dim everything except where your cursor points.
+- **Zoom.** Magnify content under your cursor in a floating bubble.
 
 ## What's new in this release
 
