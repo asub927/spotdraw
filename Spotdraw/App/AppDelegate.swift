@@ -283,6 +283,8 @@ import Cocoa
     // MARK: - Menu Actions (Requirement 1)
 
     @objc private func openSettings() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
         settingsWindowController.showWindow()
     }
 

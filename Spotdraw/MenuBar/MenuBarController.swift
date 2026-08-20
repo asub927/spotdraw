@@ -76,8 +76,10 @@ import Cocoa
 
     private func setupStatusItem() {
         guard let button = statusItem.button else { return }
-        button.image = NSImage(systemSymbolName: "pencil.tip.crop.circle", accessibilityDescription: "Spotdraw")
-        button.image?.size = NSSize(width: 18, height: 18)
+        let icon = NSImage(systemSymbolName: "pencil.tip.crop.circle", accessibilityDescription: "Spotdraw")
+        icon?.size = NSSize(width: 18, height: 18)
+        icon?.isTemplate = true
+        button.image = icon
     }
 
     private func setupMenu() {

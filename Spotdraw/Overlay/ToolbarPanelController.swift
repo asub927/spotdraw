@@ -248,6 +248,8 @@ internal struct FeatureState: Equatable {
         panelWindow.isReleasedWhenClosed = false
         panelWindow.isMovableByWindowBackground = false
         panelWindow.acceptsMouseMovedEvents = true
+        panelWindow.isFloatingPanel = true
+        panelWindow.sharingType = .none  // Invisible to screen capture/recording
         panelWindow.contentView = content
 
         self.panel = panelWindow
