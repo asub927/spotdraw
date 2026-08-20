@@ -103,6 +103,19 @@ internal struct FeatureState: Equatable {
         panelDismissed = true
     }
 
+    /// Toggles the panel visibility. If dismissed, shows it again; if visible, dismisses it.
+    func toggleVisibility() {
+        if panelDismissed || panel == nil || !panel!.isVisible {
+            panelDismissed = false
+            if panel != nil {
+                panel?.orderFrontRegardless()
+                startRefreshTimer()
+            }
+        } else {
+            dismiss()
+        }
+    }
+
     // MARK: - Panel Rebuild
 
     private func rebuildPanel() {
@@ -152,6 +165,12 @@ internal struct FeatureState: Equatable {
     }
 
     private func initialFrame(width: CGFloat) -> NSRect {
+        let settings = SettingsManager.shared
+        if settings.hasToolbarPanelPosition {
+            let x = settings.toolbarPanelX
+            let y = settings.toolbarPanelY
+            return NSRect(x: x, y: y, width: width, height: Layout.panelHeight)
+        }
         guard let screen = NSScreen.main else {
             return NSRect(x: 100, y: 100, width: width, height: Layout.panelHeight)
         }
@@ -174,6 +193,19 @@ internal struct FeatureState: Equatable {
         newOrigin.y = max(screenFrame.minY, min(newOrigin.y, screenFrame.maxY - panel.frame.height))
 
         panel.setFrameOrigin(newOrigin)
+
+        // Persist position (Requirement 5)
+        let settings = SettingsManager.shared
+        settings.toolbarPanelX = newOrigin.x
+        settings.toolbarPanelY = newOrigin.y
+    }
+
+    /// Saves the current panel position to settings. Called by AppDelegate on terminate.
+    func savePosition() {
+        guard let panel = panel else { return }
+        let settings = SettingsManager.shared
+        settings.toolbarPanelX = panel.frame.origin.x
+        settings.toolbarPanelY = panel.frame.origin.y
     }
 
     // MARK: - Refresh Timer
@@ -318,6 +350,8 @@ internal struct FeatureState: Equatable {
         self.cursorManager = cursorManager
         super.init(frame: NSRect(x: 0, y: 0, width: 0, height: panelHeight))
         wantsLayer = true
+        setAccessibilityRole(.toolbar)
+        setAccessibilityLabel("Annotation toolbar")
         setupSubviews()
     }
 
@@ -336,6 +370,7 @@ internal struct FeatureState: Equatable {
         // Drag handle (always present at leading edge)
         let dragHandle = DragHandleView(frame: NSRect(x: x, y: (panelHeight - 22) / 2, width: 27, height: 22))
         dragHandle.onDrag = { [weak self] delta in self?.onDragMoved?(delta) }
+        dragHandle.toolTip = "Drag to reposition"
         addSubview(dragHandle)
         x += 27 + itemSpacing * 2
 
@@ -384,6 +419,7 @@ internal struct FeatureState: Equatable {
         x += itemSpacing
         let dismissButton = DismissButtonView(frame: NSRect(x: x, y: (panelHeight - 30) / 2, width: 30, height: 30))
         dismissButton.onTap = { [weak self] in self?.onDismiss?() }
+        dismissButton.toolTip = "Hide toolbar"
         addSubview(dismissButton)
     }
 
@@ -393,18 +429,19 @@ internal struct FeatureState: Equatable {
         var x = startX
 
         // 5 color swatches
-        let colors: [(ColorShortcut, NSColor)] = [
-            (.red, .systemRed),
-            (.blue, .systemBlue),
-            (.green, .systemGreen),
-            (.yellow, .systemYellow),
-            (.white, .white)
+        let colors: [(ColorShortcut, NSColor, String)] = [
+            (.red, .systemRed, "Red (1)"),
+            (.blue, .systemBlue, "Blue (2)"),
+            (.green, .systemGreen, "Green (3)"),
+            (.yellow, .systemYellow, "Yellow (4)"),
+            (.white, .white, "White (5)")
         ]
-        for (shortcut, color) in colors {
+        for (shortcut, color, tip) in colors {
             let btn = AnnotationColorSwatchButton(
                 frame: NSRect(x: x, y: (panelHeight - 30) / 2, width: 30, height: 30),
                 swatchColor: color,
-                shortcut: shortcut
+                shortcut: shortcut,
+                tooltip: tip
             )
             btn.onTap = { [weak self] sc in self?.annotationColorTapped(sc) }
             addSubview(btn)
@@ -420,19 +457,20 @@ internal struct FeatureState: Equatable {
         x += 1 + itemSpacing
 
         // 6 tool icons
-        let tools: [(ToolType, String)] = [
-            (.pen, "pencil.tip"),
-            (.arrow, "arrow.up.right"),
-            (.rectangle, "rectangle"),
-            (.circle, "circle"),
-            (.text, "textformat"),
-            (.eraser, "eraser")
+        let tools: [(ToolType, String, String)] = [
+            (.pen, "pencil.tip", "Pen (P)"),
+            (.arrow, "arrow.up.right", "Arrow (A)"),
+            (.rectangle, "rectangle", "Rectangle (R)"),
+            (.circle, "circle", "Circle (O)"),
+            (.text, "textformat", "Text (T)"),
+            (.eraser, "eraser", "Eraser (E)")
         ]
-        for (tool, symbolName) in tools {
+        for (tool, symbolName, tip) in tools {
             let btn = AnnotationToolIconButton(
                 frame: NSRect(x: x, y: (panelHeight - 36) / 2, width: 36, height: 36),
                 tool: tool,
-                symbolName: symbolName
+                symbolName: symbolName,
+                tooltip: tip
             )
             btn.onTap = { [weak self] t in self?.annotationToolTapped(t) }
             addSubview(btn)
@@ -455,18 +493,19 @@ internal struct FeatureState: Equatable {
         x += label.frame.width + itemSpacing
 
         // Color swatches (smaller 16pt)
-        let colors: [(String, NSColor)] = [
-            ("yellow", .systemYellow),
-            ("red", .systemRed),
-            ("blue", .systemBlue),
-            ("green", .systemGreen),
-            ("white", .white)
+        let colors: [(String, NSColor, String)] = [
+            ("yellow", .systemYellow, "Yellow"),
+            ("red", .systemRed, "Red"),
+            ("blue", .systemBlue, "Blue"),
+            ("green", .systemGreen, "Green"),
+            ("white", .white, "White")
         ]
-        for (name, color) in colors {
+        for (name, color, tip) in colors {
             let btn = SmallColorSwatchButton(
                 frame: NSRect(x: x, y: (panelHeight - 24) / 2, width: 24, height: 24),
                 swatchColor: color,
-                colorName: name
+                colorName: name,
+                tooltip: tip
             )
             btn.onTap = { [weak self] c in self?.highlightColorTapped(c) }
             addSubview(btn)
@@ -477,12 +516,13 @@ internal struct FeatureState: Equatable {
         x += itemSpacing
 
         // Size buttons S/M/L/XL (30/50/100/150)
-        let sizes: [(String, CGFloat)] = [("S", 30), ("M", 50), ("L", 100), ("XL", 150)]
-        for (label, size) in sizes {
+        let sizes: [(String, CGFloat, String)] = [("S", 30, "Small (30pt)"), ("M", 50, "Medium (50pt)"), ("L", 100, "Large (100pt)"), ("XL", 150, "Extra Large (150pt)")]
+        for (label, size, tip) in sizes {
             let btn = LabelButton(
                 frame: NSRect(x: x, y: (panelHeight - 30) / 2, width: 30, height: 30),
                 label: label,
-                tag: Int(size)
+                tag: Int(size),
+                tooltip: tip
             )
             btn.onTap = { [weak self] tag in self?.highlightSizeTapped(CGFloat(tag)) }
             addSubview(btn)
@@ -493,17 +533,18 @@ internal struct FeatureState: Equatable {
         x += itemSpacing
 
         // Shape buttons
-        let shapes: [(HighlightShape, String)] = [
-            (.circle, "circle.fill"),
-            (.ring, "circle"),
-            (.square, "square"),
-            (.crosshair, "plus")
+        let shapes: [(HighlightShape, String, String)] = [
+            (.circle, "circle.fill", "Circle"),
+            (.ring, "circle", "Ring"),
+            (.square, "square", "Square"),
+            (.crosshair, "plus", "Crosshair")
         ]
-        for (shape, symbolName) in shapes {
+        for (shape, symbolName, tip) in shapes {
             let btn = ShapeIconButton(
                 frame: NSRect(x: x, y: (panelHeight - 30) / 2, width: 30, height: 30),
                 shape: shape,
-                symbolName: symbolName
+                symbolName: symbolName,
+                tooltip: tip
             )
             btn.onTap = { [weak self] s in self?.highlightShapeTapped(s) }
             addSubview(btn)
@@ -517,7 +558,8 @@ internal struct FeatureState: Equatable {
         let gBtn = LabelButton(
             frame: NSRect(x: x, y: (panelHeight - 30) / 2, width: 30, height: 30),
             label: "G",
-            tag: 0
+            tag: 0,
+            tooltip: "Toggle glow effect"
         )
         gBtn.onTap = { [weak self] _ in self?.glowToggleTapped() }
         addSubview(gBtn)
@@ -599,7 +641,8 @@ internal struct FeatureState: Equatable {
         let minusBtn = LabelButton(
             frame: NSRect(x: x, y: (panelHeight - 30) / 2, width: 30, height: 30),
             label: "−",
-            tag: -1
+            tag: -1,
+            tooltip: "Zoom out (⌃-)"
         )
         minusBtn.onTap = { [weak self] _ in self?.zoomOutTapped() }
         addSubview(minusBtn)
@@ -624,7 +667,8 @@ internal struct FeatureState: Equatable {
         let plusBtn = LabelButton(
             frame: NSRect(x: x, y: (panelHeight - 30) / 2, width: 30, height: 30),
             label: "+",
-            tag: 1
+            tag: 1,
+            tooltip: "Zoom in (⌃=)"
         )
         plusBtn.onTap = { [weak self] _ in self?.zoomInTapped() }
         addSubview(plusBtn)
@@ -632,12 +676,13 @@ internal struct FeatureState: Equatable {
         x += 30 + itemSpacing
 
         // Bubble size buttons S/M/L (100/200/300)
-        let sizes: [(String, CGFloat)] = [("S", 100), ("M", 200), ("L", 300)]
-        for (labelStr, size) in sizes {
+        let sizes: [(String, CGFloat, String)] = [("S", 100, "Small bubble (100pt)"), ("M", 200, "Medium bubble (200pt)"), ("L", 300, "Large bubble (300pt)")]
+        for (labelStr, size, tip) in sizes {
             let btn = LabelButton(
                 frame: NSRect(x: x, y: (panelHeight - 30) / 2, width: 30, height: 30),
                 label: labelStr,
-                tag: Int(size)
+                tag: Int(size),
+                tooltip: tip
             )
             btn.onTap = { [weak self] tag in self?.zoomBubbleSizeTapped(CGFloat(tag)) }
             addSubview(btn)
@@ -811,6 +856,8 @@ internal struct FeatureState: Equatable {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
+        setAccessibilityRole(.handle)
+        setAccessibilityLabel("Drag to reposition toolbar")
     }
 
     required init?(coder: NSCoder) {
@@ -864,11 +911,14 @@ internal struct FeatureState: Equatable {
     var isActive: Bool = false { didSet { needsDisplay = true } }
     var onTap: ((ColorShortcut) -> Void)?
 
-    init(frame frameRect: NSRect, swatchColor: NSColor, shortcut: ColorShortcut) {
+    init(frame frameRect: NSRect, swatchColor: NSColor, shortcut: ColorShortcut, tooltip: String? = nil) {
         self.swatchColor = swatchColor
         self.shortcut = shortcut
         super.init(frame: frameRect)
         wantsLayer = true
+        if let tooltip { self.toolTip = tooltip }
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(tooltip ?? "Color swatch")
     }
 
     required init?(coder: NSCoder) {
@@ -905,11 +955,14 @@ internal struct FeatureState: Equatable {
     var isActive: Bool = false { didSet { needsDisplay = true } }
     var onTap: ((ToolType) -> Void)?
 
-    init(frame frameRect: NSRect, tool: ToolType, symbolName: String) {
+    init(frame frameRect: NSRect, tool: ToolType, symbolName: String, tooltip: String? = nil) {
         self.tool = tool
         self.symbolName = symbolName
         super.init(frame: frameRect)
         wantsLayer = true
+        if let tooltip { self.toolTip = tooltip }
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(tooltip ?? "\(tool) tool")
     }
 
     required init?(coder: NSCoder) {
@@ -962,11 +1015,14 @@ internal struct FeatureState: Equatable {
     var isActive: Bool = false { didSet { needsDisplay = true } }
     var onTap: ((NSColor) -> Void)?
 
-    init(frame frameRect: NSRect, swatchColor: NSColor, colorName: String) {
+    init(frame frameRect: NSRect, swatchColor: NSColor, colorName: String, tooltip: String? = nil) {
         self.swatchColor = swatchColor
         self.colorName = colorName
         super.init(frame: frameRect)
         wantsLayer = true
+        if let tooltip { self.toolTip = tooltip }
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(tooltip ?? "\(colorName) color")
     }
 
     required init?(coder: NSCoder) {
@@ -1003,11 +1059,14 @@ internal struct FeatureState: Equatable {
     var isActive: Bool = false { didSet { needsDisplay = true } }
     var onTap: ((Int) -> Void)?
 
-    init(frame frameRect: NSRect, label: String, tag: Int) {
+    init(frame frameRect: NSRect, label: String, tag: Int, tooltip: String? = nil) {
         self.label = label
         self.buttonTag = tag
         super.init(frame: frameRect)
         wantsLayer = true
+        if let tooltip { self.toolTip = tooltip }
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(tooltip ?? label)
     }
 
     required init?(coder: NSCoder) {
@@ -1057,11 +1116,14 @@ internal struct FeatureState: Equatable {
     var isActive: Bool = false { didSet { needsDisplay = true } }
     var onTap: ((HighlightShape) -> Void)?
 
-    init(frame frameRect: NSRect, shape: HighlightShape, symbolName: String) {
+    init(frame frameRect: NSRect, shape: HighlightShape, symbolName: String, tooltip: String? = nil) {
         self.shape = shape
         self.symbolName = symbolName
         super.init(frame: frameRect)
         wantsLayer = true
+        if let tooltip { self.toolTip = tooltip }
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(tooltip ?? shape.displayName)
     }
 
     required init?(coder: NSCoder) {
@@ -1125,6 +1187,8 @@ internal struct FeatureState: Equatable {
         super.init(frame: frameRect)
         wantsLayer = true
         self.toolTip = tooltip
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(tooltip)
     }
 
     required init?(coder: NSCoder) {
@@ -1198,6 +1262,8 @@ internal struct FeatureState: Equatable {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
+        setAccessibilityRole(.button)
+        setAccessibilityLabel("Hide toolbar")
     }
 
     required init?(coder: NSCoder) {

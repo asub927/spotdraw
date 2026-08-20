@@ -33,13 +33,16 @@ import Cocoa
 
         settingsManager = SettingsManager.shared
         settingsWindowController = SettingsWindowController()
+        setupMainMenu()
         setupMenuBar()
         setupOverlay()
         setupCursorManager()
         setupHotkeys()
+        restoreState()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        saveState()
         hotkeyManager.removeAllMonitors()
         cursorManager.shutdown()
     }
@@ -126,6 +129,288 @@ import Cocoa
         hotkeyManager.register(action: .toggleInteractiveMode) { [weak self] in
             self?.toggleInteractiveMode()
         }
+    }
+
+    // MARK: - State Restoration (Requirement 5)
+
+    private func saveState() {
+        let settings = SettingsManager.shared
+
+        // Save active tool
+        settings.lastActiveTool = toolTypeName(overlayController.drawingState.activeTool)
+
+        // Save active color
+        settings.lastActiveColor = overlayController.drawingState.activeColor
+
+        // Save feature states
+        settings.wasAnnotationActive = overlayController.isActive
+        settings.wasHighlightActive = cursorManager.isHighlightActive
+        settings.wasSpotlightActive = cursorManager.isSpotlightActive
+        settings.wasZoomActive = cursorManager.isZoomActive
+
+        // Save toolbar panel position
+        toolbarPanel.savePosition()
+    }
+
+    private func restoreState() {
+        let settings = SettingsManager.shared
+
+        // Restore active tool and color
+        overlayController.drawingState.activeTool = toolTypeFromName(settings.lastActiveTool)
+        overlayController.drawingState.activeColor = settings.lastActiveColor
+
+        // Restore previously active features
+        if settings.wasAnnotationActive {
+            toggleAnnotation()
+        }
+        if settings.wasHighlightActive {
+            toggleCursorHighlight()
+        }
+        if settings.wasSpotlightActive {
+            toggleSpotlight()
+        }
+        if settings.wasZoomActive {
+            toggleZoom()
+        }
+    }
+
+    private func toolTypeName(_ tool: ToolType) -> String {
+        switch tool {
+        case .pen: return "pen"
+        case .arrow: return "arrow"
+        case .rectangle: return "rectangle"
+        case .circle: return "circle"
+        case .line: return "line"
+        case .highlighter: return "highlighter"
+        case .eraser: return "eraser"
+        case .text: return "text"
+        case .select: return "select"
+        }
+    }
+
+    private func toolTypeFromName(_ name: String) -> ToolType {
+        switch name {
+        case "pen": return .pen
+        case "arrow": return .arrow
+        case "rectangle": return .rectangle
+        case "circle": return .circle
+        case "line": return .line
+        case "highlighter": return .highlighter
+        case "eraser": return .eraser
+        case "text": return .text
+        case "select": return .select
+        default: return .pen
+        }
+    }
+
+    // MARK: - Main Menu (Requirement 1)
+
+    private func setupMainMenu() {
+        let mainMenu = NSMenu()
+
+        // App menu
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "About Spotdraw", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(withTitle: "Hide Spotdraw", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        let hideOthersItem = appMenu.addItem(withTitle: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        hideOthersItem.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(withTitle: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(withTitle: "Quit Spotdraw", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
+
+        // Edit menu
+        let editMenuItem = NSMenuItem()
+        let editMenu = NSMenu(title: "Edit")
+        let undoItem = editMenu.addItem(withTitle: "Undo", action: #selector(undoAction), keyEquivalent: "z")
+        undoItem.target = self
+        let redoItem = editMenu.addItem(withTitle: "Redo", action: #selector(redoAction), keyEquivalent: "Z")
+        redoItem.target = self
+        editMenu.addItem(NSMenuItem.separator())
+        let cutItem = editMenu.addItem(withTitle: "Cut", action: #selector(cutAction), keyEquivalent: "x")
+        cutItem.target = self
+        let copyItem = editMenu.addItem(withTitle: "Copy", action: #selector(copyAction), keyEquivalent: "c")
+        copyItem.target = self
+        let pasteItem = editMenu.addItem(withTitle: "Paste", action: #selector(pasteAction), keyEquivalent: "v")
+        pasteItem.target = self
+        let deleteItem = editMenu.addItem(withTitle: "Delete", action: #selector(deleteAction), keyEquivalent: "\u{08}")
+        deleteItem.target = self
+        deleteItem.keyEquivalentModifierMask = []
+        editMenu.addItem(NSMenuItem.separator())
+        let selectAllItem = editMenu.addItem(withTitle: "Select All", action: #selector(selectAllAction), keyEquivalent: "a")
+        selectAllItem.target = self
+        editMenuItem.submenu = editMenu
+        mainMenu.addItem(editMenuItem)
+
+        // View menu
+        let viewMenuItem = NSMenuItem()
+        let viewMenu = NSMenu(title: "View")
+        let toolbarItem = viewMenu.addItem(withTitle: "Toggle Toolbar Panel", action: #selector(toggleToolbarPanel), keyEquivalent: "")
+        toolbarItem.target = self
+        let boardItem = viewMenu.addItem(withTitle: "Toggle Board Mode", action: #selector(toggleBoardAction), keyEquivalent: "")
+        boardItem.target = self
+        let fadeItem = viewMenu.addItem(withTitle: "Toggle Fade Mode", action: #selector(toggleFadeAction), keyEquivalent: "")
+        fadeItem.target = self
+        viewMenuItem.submenu = viewMenu
+        mainMenu.addItem(viewMenuItem)
+
+        // Window menu
+        let windowMenuItem = NSMenuItem()
+        let windowMenu = NSMenu(title: "Window")
+        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
+        windowMenu.addItem(withTitle: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
+        windowMenuItem.submenu = windowMenu
+        mainMenu.addItem(windowMenuItem)
+        NSApp.windowsMenu = windowMenu
+
+        // Help menu
+        let helpMenuItem = NSMenuItem()
+        let helpMenu = NSMenu(title: "Help")
+        let helpItem = helpMenu.addItem(withTitle: "Spotdraw Help", action: #selector(openHelp), keyEquivalent: "?")
+        helpItem.target = self
+        helpMenuItem.submenu = helpMenu
+        mainMenu.addItem(helpMenuItem)
+        NSApp.helpMenu = helpMenu
+
+        NSApp.mainMenu = mainMenu
+    }
+
+    // MARK: - Menu Actions (Requirement 1)
+
+    @objc private func openSettings() {
+        settingsWindowController.showWindow()
+    }
+
+    @objc private func undoAction() {
+        guard overlayController.isActive else { return }
+        overlayController.drawingState.undo()
+        refreshOverlayViews()
+    }
+
+    @objc private func redoAction() {
+        guard overlayController.isActive else { return }
+        overlayController.drawingState.redo()
+        refreshOverlayViews()
+    }
+
+    @objc private func cutAction() {
+        guard overlayController.isActive else { return }
+        copySelectionToPasteboard()
+        overlayController.drawingState.removeSelected()
+        refreshOverlayViews()
+    }
+
+    @objc private func copyAction() {
+        guard overlayController.isActive else { return }
+        copySelectionToPasteboard()
+    }
+
+    @objc private func pasteAction() {
+        // Paste support: placeholder for full implementation
+    }
+
+    @objc private func deleteAction() {
+        guard overlayController.isActive else { return }
+        overlayController.drawingState.removeSelected()
+        refreshOverlayViews()
+    }
+
+    @objc private func selectAllAction() {
+        guard overlayController.isActive else { return }
+        overlayController.drawingState.selectAll()
+        refreshOverlayViews()
+    }
+
+    @objc private func toggleToolbarPanel() {
+        toolbarPanel.toggleVisibility()
+    }
+
+    @objc private func toggleBoardAction() {
+        guard overlayController.isActive else { return }
+        overlayController.toggleBoard()
+    }
+
+    @objc private func toggleFadeAction() {
+        guard overlayController.isActive else { return }
+        overlayController.toggleFadeMode()
+    }
+
+    @objc private func openHelp() {
+        if let url = URL(string: "https://github.com/AaranVinaique/Spotdraw") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func refreshOverlayViews() {
+        // Force redraw of all overlay windows by clearing/re-rendering
+        overlayController.refreshViews()
+    }
+
+    // MARK: - Copy/Paste Support (Requirement 2)
+
+    /// Renders selected annotations as a PNG image and writes to the system pasteboard.
+    private func copySelectionToPasteboard() {
+        let state = overlayController.drawingState
+        guard !state.selection.isEmpty else { return }
+
+        let selectedItems = state.items.filter { state.selection.contains($0.id) }
+        guard !selectedItems.isEmpty else { return }
+
+        // Compute bounding box of selected items
+        var unionRect = CGRect.null
+        for item in selectedItems {
+            let itemBounds = item.bounds
+            unionRect = unionRect.union(itemBounds)
+        }
+        guard !unionRect.isNull, unionRect.width > 0, unionRect.height > 0 else { return }
+
+        // Add padding
+        let padding: CGFloat = 4
+        let renderRect = unionRect.insetBy(dx: -padding, dy: -padding)
+
+        // Create bitmap context
+        let width = Int(ceil(renderRect.width))
+        let height = Int(ceil(renderRect.height))
+        guard let bitmapRep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return }
+
+        NSGraphicsContext.saveGraphicsState()
+        let context = NSGraphicsContext(bitmapImageRep: bitmapRep)
+        NSGraphicsContext.current = context
+        guard let cgContext = context?.cgContext else {
+            NSGraphicsContext.restoreGraphicsState()
+            return
+        }
+
+        // Translate so items render at correct position within the bitmap
+        cgContext.translateBy(x: -renderRect.origin.x, y: -renderRect.origin.y)
+
+        for item in selectedItems {
+            item.render(in: cgContext)
+        }
+
+        NSGraphicsContext.restoreGraphicsState()
+
+        // Write to pasteboard
+        guard let pngData = bitmapRep.representation(using: .png, properties: [:]) else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setData(pngData, forType: .png)
     }
 
     // MARK: - Actions

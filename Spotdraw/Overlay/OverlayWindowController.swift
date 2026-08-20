@@ -212,6 +212,13 @@ private final class KeyableWindow: NSWindow {
 
     // MARK: - Window Creation
 
+    /// Forces a redraw on all overlay views.
+    func refreshViews() {
+        overlayWindows.forEach { window in
+            window.contentView?.needsDisplay = true
+        }
+    }
+
     private func createOverlayWindows() {
         for screen in NSScreen.screens {
             let window = makeOverlayWindow(for: screen)

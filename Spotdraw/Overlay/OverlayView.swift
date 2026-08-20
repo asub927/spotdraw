@@ -323,6 +323,115 @@ import Cocoa
         needsDisplay = true
     }
 
+    // MARK: - Contextual Menus (Requirement 6)
+
+    override func rightMouseDown(with event: NSEvent) {
+        let menu = NSMenu()
+
+        if !drawingState.selection.isEmpty {
+            // Context menu for selected annotations
+            let copyItem = menu.addItem(withTitle: "Copy", action: #selector(contextCopy), keyEquivalent: "")
+            copyItem.target = self
+            let cutItem = menu.addItem(withTitle: "Cut", action: #selector(contextCut), keyEquivalent: "")
+            cutItem.target = self
+            let deleteItem = menu.addItem(withTitle: "Delete", action: #selector(contextDelete), keyEquivalent: "")
+            deleteItem.target = self
+        } else {
+            // Context menu for empty space
+            let pasteItem = menu.addItem(withTitle: "Paste", action: #selector(contextPaste), keyEquivalent: "")
+            pasteItem.target = self
+            pasteItem.isEnabled = NSPasteboard.general.data(forType: .png) != nil
+            let selectAllItem = menu.addItem(withTitle: "Select All", action: #selector(contextSelectAll), keyEquivalent: "")
+            selectAllItem.target = self
+            menu.addItem(NSMenuItem.separator())
+            let clearItem = menu.addItem(withTitle: "Clear All", action: #selector(contextClearAll), keyEquivalent: "")
+            clearItem.target = self
+        }
+
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    @objc private func contextCopy() {
+        // Copy selected annotations to pasteboard as PNG
+        copySelectedToPasteboard()
+    }
+
+    @objc private func contextCut() {
+        copySelectedToPasteboard()
+        drawingState.removeSelected()
+        needsDisplay = true
+    }
+
+    @objc private func contextDelete() {
+        drawingState.removeSelected()
+        needsDisplay = true
+    }
+
+    @objc private func contextPaste() {
+        // Placeholder for paste support
+    }
+
+    @objc private func contextSelectAll() {
+        drawingState.selectAll()
+        needsDisplay = true
+    }
+
+    @objc private func contextClearAll() {
+        clearAll()
+    }
+
+    /// Renders the current selection as PNG and writes to the system pasteboard.
+    private func copySelectedToPasteboard() {
+        guard !drawingState.selection.isEmpty else { return }
+
+        let selectedItems = drawingState.items.filter { drawingState.selection.contains($0.id) }
+        guard !selectedItems.isEmpty else { return }
+
+        // Compute bounding box
+        var unionRect = CGRect.null
+        for item in selectedItems {
+            unionRect = unionRect.union(item.bounds)
+        }
+        guard !unionRect.isNull, unionRect.width > 0, unionRect.height > 0 else { return }
+
+        let padding: CGFloat = 4
+        let renderRect = unionRect.insetBy(dx: -padding, dy: -padding)
+        let width = Int(ceil(renderRect.width))
+        let height = Int(ceil(renderRect.height))
+
+        guard let bitmapRep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return }
+
+        NSGraphicsContext.saveGraphicsState()
+        let context = NSGraphicsContext(bitmapImageRep: bitmapRep)
+        NSGraphicsContext.current = context
+        guard let cgContext = context?.cgContext else {
+            NSGraphicsContext.restoreGraphicsState()
+            return
+        }
+
+        cgContext.translateBy(x: -renderRect.origin.x, y: -renderRect.origin.y)
+        for item in selectedItems {
+            item.render(in: cgContext)
+        }
+        NSGraphicsContext.restoreGraphicsState()
+
+        guard let pngData = bitmapRep.representation(using: .png, properties: [:]) else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setData(pngData, forType: .png)
+    }
+
     // MARK: - Text Tool
 
     /// Returns the topmost `TextAnnotation` whose bounding rectangle contains `point`,

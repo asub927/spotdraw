@@ -52,6 +52,15 @@ internal enum HighlightShape: Int, CaseIterable {
         static let zoomBubbleSize = "zoomBubbleSize"
         static let interactiveModeEnabled = "interactiveModeEnabled"
         static let passthroughModifier = "passthroughModifier"
+        // State restoration (Requirement 5)
+        static let lastActiveTool = "lastActiveTool"
+        static let lastActiveColor = "lastActiveColor"
+        static let toolbarPanelX = "toolbarPanelX"
+        static let toolbarPanelY = "toolbarPanelY"
+        static let wasAnnotationActive = "wasAnnotationActive"
+        static let wasHighlightActive = "wasHighlightActive"
+        static let wasSpotlightActive = "wasSpotlightActive"
+        static let wasZoomActive = "wasZoomActive"
     }
 
     // MARK: - Annotation Settings
@@ -121,6 +130,61 @@ internal enum HighlightShape: Int, CaseIterable {
             return PassthroughModifier(rawValue: raw) ?? .rightOption
         }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: Keys.passthroughModifier) }
+    }
+
+    // MARK: - State Restoration (Requirement 5)
+
+    /// The last active tool name, persisted as a string matching ToolType cases.
+    var lastActiveTool: String {
+        get { UserDefaults.standard.string(forKey: Keys.lastActiveTool) ?? "pen" }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.lastActiveTool) }
+    }
+
+    /// The last active annotation color.
+    var lastActiveColor: NSColor {
+        get { colorForKey(Keys.lastActiveColor) ?? .systemRed }
+        set { setColor(newValue, forKey: Keys.lastActiveColor) }
+    }
+
+    /// Toolbar panel X position (screen coordinates).
+    var toolbarPanelX: CGFloat {
+        get { CGFloat(UserDefaults.standard.float(forKey: Keys.toolbarPanelX)) }
+        set { UserDefaults.standard.set(Float(newValue), forKey: Keys.toolbarPanelX) }
+    }
+
+    /// Toolbar panel Y position (screen coordinates).
+    var toolbarPanelY: CGFloat {
+        get { CGFloat(UserDefaults.standard.float(forKey: Keys.toolbarPanelY)) }
+        set { UserDefaults.standard.set(Float(newValue), forKey: Keys.toolbarPanelY) }
+    }
+
+    /// Whether toolbar panel position has been saved at least once.
+    var hasToolbarPanelPosition: Bool {
+        UserDefaults.standard.object(forKey: Keys.toolbarPanelX) != nil
+    }
+
+    /// Whether annotation overlay was active when app last terminated.
+    var wasAnnotationActive: Bool {
+        get { UserDefaults.standard.bool(forKey: Keys.wasAnnotationActive) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.wasAnnotationActive) }
+    }
+
+    /// Whether cursor highlight was active when app last terminated.
+    var wasHighlightActive: Bool {
+        get { UserDefaults.standard.bool(forKey: Keys.wasHighlightActive) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.wasHighlightActive) }
+    }
+
+    /// Whether spotlight was active when app last terminated.
+    var wasSpotlightActive: Bool {
+        get { UserDefaults.standard.bool(forKey: Keys.wasSpotlightActive) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.wasSpotlightActive) }
+    }
+
+    /// Whether zoom was active when app last terminated.
+    var wasZoomActive: Bool {
+        get { UserDefaults.standard.bool(forKey: Keys.wasZoomActive) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.wasZoomActive) }
     }
 
     // MARK: - Cursor Highlight Settings
@@ -223,7 +287,12 @@ internal enum HighlightShape: Int, CaseIterable {
             Keys.zoomLevel: 2.0,
             Keys.zoomBubbleSize: 200.0,
             Keys.interactiveModeEnabled: false,
-            Keys.passthroughModifier: PassthroughModifier.rightOption.rawValue
+            Keys.passthroughModifier: PassthroughModifier.rightOption.rawValue,
+            Keys.lastActiveTool: "pen",
+            Keys.wasAnnotationActive: false,
+            Keys.wasHighlightActive: false,
+            Keys.wasSpotlightActive: false,
+            Keys.wasZoomActive: false
         ])
     }
 }
