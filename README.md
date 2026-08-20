@@ -1,40 +1,25 @@
 # Spotdraw
 
-**Draw on your screen. Highlight your cursor. Spotlight what matters. Zoom into details.** One native macOS app replaces the paid tools presenters have been buying for years.
+Draw on your screen. Highlight your cursor. Spotlight what matters. Zoom into details. A native macOS screen annotation tool, open-source, zero dependencies, 450KB.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![macOS](https://img.shields.io/badge/macOS-13.0+-blue.svg)](https://www.apple.com/macos/)
 [![Built with Kiro](https://img.shields.io/badge/Built%20with-Kiro-blueviolet.svg)](https://kiro.dev/)
 
-## Why it exists
+## What it does
 
-Commercial screen annotation tools charge annual fees, lock you into closed ecosystems, and still only cover part of what presenters need. Open-source alternatives are fragmented: one tool draws, another highlights the cursor, none do everything.
-
-**Spotdraw does.** Four features in a single 450KB native binary:
+Four features in one binary:
 
 - **Annotation.** Pen, arrow, rectangle, circle, line, highlighter, eraser, text. Select, move, delete, undo.
 - **Cursor highlight.** Colored halo with click animations. Configurable shape, size, glow.
-- **Spotlight.** Dim everything except where your cursor points.
-- **Zoom.** Magnify content under your cursor in a floating bubble.
+- **Spotlight.** Dims the screen except around your cursor.
+- **Zoom.** Magnifies content under the cursor in a floating bubble.
 
-## What's new in this release
-
-- Text annotations (create, edit, drag)
-- Select, move, and delete with marquee and shift-click
-- Fully customizable shortcuts (Settings > Shortcuts tab)
-- Floating toolbar panel with dynamic sections per active feature
-- Passthrough and Interactive Mode (click through annotations)
-- Standard macOS menus (Edit/View/Window/Help)
-- Copy selected annotations as PNG to pasteboard
-- Right-click contextual menus
-- State restoration across relaunches
-- Tooltips on all toolbar controls
-- VoiceOver accessibility labels
-- 78 automated tests passing
+Plus a floating toolbar panel that shows controls for whichever features are active, customizable keyboard shortcuts, passthrough mode for clicking through annotations, and state restoration across relaunches.
 
 ## Build and run
 
-**Requirements:** macOS 13.0+, Swift 5.9+ (Xcode 15+ Command Line Tools)
+Requires macOS 13.0+ and Swift 5.9+ (Xcode 15 Command Line Tools).
 
 ```bash
 git clone https://github.com/asub927/spotdraw.git
@@ -51,9 +36,9 @@ Grant Accessibility permission when prompted. The app appears as a pencil icon i
 swift run SpotdrawTests
 ```
 
-78 tests: 13 preservation, 26 property-based, 39 unit/regression. All run headlessly from the command line.
+78 tests: 13 preservation, 26 property-based, 39 unit/regression. Runs headlessly from the command line.
 
-## Default shortcuts
+## Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
@@ -73,20 +58,20 @@ swift run SpotdrawTests
 | `Space` | Toggle fade mode |
 | `Escape` | Deactivate overlay |
 
-All shortcuts are rebindable in Settings > Shortcuts.
+All rebindable in Settings > Shortcuts.
 
 ## Testing instructions for judges
 
 1. Clone and run `swift run Spotdraw`
 2. Grant Accessibility permission (System Settings > Privacy & Security > Accessibility)
-3. Press `Ctrl+D` to activate. Draw with the mouse. Try tool keys (P/A/R/O/L/H/E/T/S)
-4. Press `T`, click, type text, press Return
-5. Press `S`, click items, shift-click, drag marquee, Delete to remove, Cmd+Z to undo
-6. Press `Ctrl+S` for cursor highlight, `Ctrl+L` for spotlight
+3. `Ctrl+D` to activate. Draw with the mouse. Try tool keys (P/A/R/O/L/H/E/T/S)
+4. `T`, click, type text, press Return
+5. `S`, click items, shift-click, drag marquee, Delete to remove, Cmd+Z to undo
+6. `Ctrl+S` for cursor highlight, `Ctrl+L` for spotlight
 7. Toggle features and watch the toolbar panel sections appear/disappear
 8. Open Settings > Shortcuts tab to rebind keys
 9. Hold Right Option while annotating for passthrough
-10. Run `swift run SpotdrawTests` to verify 78/78 passing
+10. `swift run SpotdrawTests` to verify 78/78 passing
 
 ## Architecture
 
@@ -106,62 +91,42 @@ Spotdraw/
 └── Resources/     Info.plist
 ```
 
-**Key decisions:**
-- Zero third-party dependencies. Pure Apple frameworks (AppKit, SwiftUI, Core Graphics).
-- Operation-stack undo model supporting add, remove, move, and edit operations.
-- Translation via additive offset. Immutable geometry preserved.
-- Non-activating NSPanel for the toolbar. Does not steal keyboard focus.
-- CGEvent tap for global shortcuts with ShortcutStore resolution.
-- Property-based testing validates invariants across random operation sequences.
+Zero third-party dependencies. Pure AppKit, SwiftUI, and Core Graphics.
+
+Operation-stack undo model supports add, remove, move, and edit. Translation uses an additive offset so immutable geometry stays untouched. The toolbar is a non-activating NSPanel that never steals keyboard focus. Global shortcuts use a CGEvent tap resolved through ShortcutStore. Property-based tests validate invariants across random operation sequences.
 
 ## How Kiro was used
 
-Every feature followed the Kiro spec-driven workflow:
+The `.kiro/specs/` directory in this repository contains the full spec-driven workflow. Each feature started as a requirements document, became a design, broke into ordered tasks, and was implemented with verification checkpoints.
 
-```
-Requirements > Design > Tasks > Implementation > Verification
-```
-
-**The specs are in `.kiro/specs/` in this repository.**
-
-| Spec | Coverage |
-|------|----------|
-| `annotation-parity-phase-1` | Text, select/move/delete, zoom, shortcuts, passthrough (14 task groups, 78 tests) |
-| `panel-redesign` | Floating toolbar panel |
+| Spec | What it covers |
+|------|----------------|
+| `annotation-parity-phase-1` | Text, select/move/delete, zoom, shortcuts, passthrough. 14 task groups, 78 tests. |
+| `panel-redesign` | Floating toolbar panel with dynamic sections |
 | `shortcut-details` | Shortcut indicators on menu items |
-| `swift-redesign` | Mac-native design principles review |
-| `annotation-parity-phase-2` | Next phase planning |
+| `swift-redesign` | Mac-native design review against Mac-Arsed Mac App principles |
 | `spotdraw-shortcut-freeze-fix` | Bugfix for overlay deactivation |
 | `cursor-highlight-enhancements` | Cursor highlight improvements |
 | `swift-code-review` | Code quality pass |
 
-**What Kiro enabled:**
-- 13 verification checkpoints. Each task group gated by test passage.
-- 26 property tests written by Kiro validating invariants like "selection never contains a stale identifier" and "operation-stack invertibility."
-- 5,700+ lines of production code in a single session. All tests passing.
+Kiro wrote 26 property tests that validate invariants like "selection never contains a stale identifier" and "operation-stack invertibility." It produced 5,700+ lines of production code across one session with 13 verification checkpoints gating each task group.
 
-## Mac-native design principles
+## Mac-native design
 
-Spotdraw follows the [Mac-Arsed Mac App](https://github.com/bartreardon/skills/tree/main/mac-arsed-mac-app) principles:
+Follows the [Mac-Arsed Mac App](https://github.com/bartreardon/skills/tree/main/mac-arsed-mac-app) principles:
 
 - Standard Edit/View/Window/Help menus with command routing
-- Copy/paste annotations as images
-- Right-click contextual menus everywhere
-- State restoration (last tool, color, toolbar position, active features)
-- Tooltips on all toolbar controls
-- VoiceOver accessibility labels on all buttons
+- Copy/paste annotations as PNG images
+- Right-click contextual menus
+- State restoration (tool, color, toolbar position, active features)
+- Tooltips on toolbar controls
+- VoiceOver accessibility labels
 - Every action reachable without a mouse
-
-## Requirements
-
-- **macOS 13.0** (Ventura) or later
-- **Accessibility permission** for global keyboard shortcuts
-- **Screen Recording permission** for Zoom feature (optional)
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
 
-## Built for the Ready, Spec, Ship Hackathon
+## Hackathon
 
-Built with [Kiro](https://kiro.dev/) for the [Ready, Spec, Ship Hackathon](https://codingagents.fyi/hackathon/kiro/) hosted by [Coding Agents](https://codingagents.fyi).
+Built with [Kiro](https://kiro.dev/) for the [Ready, Spec, Ship Hackathon](https://codingagents.fyi/hackathon/kiro/) by [Coding Agents](https://codingagents.fyi).
