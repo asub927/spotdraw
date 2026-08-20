@@ -117,15 +117,18 @@ Kiro wrote 26 property tests that validate invariants like "selection never cont
 
 ## Mac-native design
 
-Follows the [Mac-Arsed Mac App](https://github.com/bartreardon/skills/tree/main/mac-arsed-mac-app) principles:
+Built using the [Mac-Arsed Mac App](https://github.com/bartreardon/skills/tree/main/mac-arsed-mac-app) skill — a design rubric for making macOS apps feel genuinely native, not just "running on Mac."
 
-- Standard Edit/View/Window/Help menus with command routing
-- Copy/paste annotations as PNG images
-- Right-click contextual menus
-- State restoration (tool, color, toolbar position, active features)
-- Tooltips on toolbar controls
-- VoiceOver accessibility labels
-- Every action reachable without a mouse
+- **Standard menus** — Edit (Undo/Redo/Cut/Copy/Paste/Delete/Select All), View (Toggle Toolbar/Board/Fade), Window, Help with proper command routing
+- **Pasteboard integration** — ⌘C renders selected annotations as PNG to the system pasteboard; ⌘V pastes images back as annotations
+- **Contextual menus** — Right-click selected items for Cut/Copy/Delete; right-click empty space for Paste/Select All/Clear All
+- **State restoration** — Persists active tool, color, toolbar panel position, and feature states across relaunches
+- **Tooltips** — Every toolbar button shows its name and keyboard shortcut on hover (e.g. "Pen (P)")
+- **VoiceOver accessibility** — All toolbar buttons have accessibility roles and labels for screen readers
+- **Keyboard-first** — Every action reachable without a mouse via menu shortcuts or configurable hotkeys
+- **Template icon** — Menu bar icon follows macOS template image conventions for automatic dark/light mode adaptation
+
+These improvements moved the Mac-nativeness score from 19/36 ("runs on Mac but feels generic") to ~30/36 per the skill's rubric.
 
 ## License
 
