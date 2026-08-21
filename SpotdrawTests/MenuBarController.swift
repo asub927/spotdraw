@@ -1,1 +1,0 @@
-../Spotdraw/MenuBar/MenuBarController.swift

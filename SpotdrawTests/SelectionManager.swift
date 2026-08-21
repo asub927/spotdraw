@@ -1,1 +1,0 @@
-../Spotdraw/Core/SelectionManager.swift

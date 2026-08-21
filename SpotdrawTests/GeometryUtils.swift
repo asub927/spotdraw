@@ -1,1 +1,0 @@
-../Spotdraw/Core/GeometryUtils.swift

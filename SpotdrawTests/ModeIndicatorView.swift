@@ -1,1 +1,0 @@
-../Spotdraw/Overlay/ModeIndicatorView.swift

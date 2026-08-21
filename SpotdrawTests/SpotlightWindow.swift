@@ -1,1 +1,0 @@
-../Spotdraw/Spotlight/SpotlightWindow.swift

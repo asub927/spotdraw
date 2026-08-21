@@ -1,1 +1,0 @@
-../Spotdraw/Settings/View+OnChangeCompat.swift

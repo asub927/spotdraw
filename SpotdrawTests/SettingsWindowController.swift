@@ -1,1 +1,0 @@
-../Spotdraw/Settings/SettingsWindowController.swift

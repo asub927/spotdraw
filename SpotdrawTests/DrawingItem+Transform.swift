@@ -1,1 +1,0 @@
-../Spotdraw/Core/DrawingItem+Transform.swift

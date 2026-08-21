@@ -1,1 +1,0 @@
-../Spotdraw/Overlay/OverlayWindowController.swift

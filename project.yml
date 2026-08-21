@@ -16,21 +16,32 @@ settings:
     ENABLE_HARDENED_RUNTIME: true
 
 targets:
+  SpotdrawCore:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Sources/SpotdrawCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.spotdraw.core
+
   Spotdraw:
     type: application
     platform: macOS
+    dependencies:
+      - target: SpotdrawCore
     sources:
-      - path: Spotdraw
+      - path: Sources/Spotdraw
     settings:
       base:
-        INFOPLIST_FILE: Spotdraw/Resources/Info.plist
+        INFOPLIST_FILE: Sources/Spotdraw/Resources/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.spotdraw.app
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
         COMBINE_HIDPI_IMAGES: true
         LSUIElement: true
     info:
-      path: Spotdraw/Resources/Info.plist
+      path: Sources/Spotdraw/Resources/Info.plist
       properties:
         CFBundleName: Spotdraw
         CFBundleDisplayName: Spotdraw
