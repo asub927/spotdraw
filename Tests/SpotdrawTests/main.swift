@@ -40,6 +40,18 @@ if selectionPropertyResults.contains(where: { !$0.passed }) {
     exit(1)
 }
 
+// Run ShapeGesture tests (overlay-gesture-extraction spec, Requirements 1.2–1.5)
+let shapeGestureResults = runAllShapeGestureTests()
+if shapeGestureResults.contains(where: { !$0.passed }) {
+    exit(1)
+}
+
+// Run SelectInteraction tests (overlay-gesture-extraction spec, Requirements 2.3–2.5, 4.3)
+let selectInteractionResults = runAllSelectInteractionTests()
+if selectInteractionResults.contains(where: { !$0.passed }) {
+    exit(1)
+}
+
 // Run zoom unit tests
 let zoomUnitResults = MainActor.assumeIsolated {
     runAllZoomUnitTests()

@@ -15,12 +15,14 @@ import SpotdrawCore
 
     var drawingState = DrawingState()
     var onDeactivate: (() -> Void)?
-    private var currentPoints: [CGPoint] = []
-    private var shapeStartPoint: CGPoint = .zero
-    private var currentShapeEndPoint: CGPoint = .zero
-    private var isDrawing = false
+    /// The in-progress shape/freehand gesture, if any. Nil when not drawing.
+    /// Owns all shape geometry accumulation and commit rules (see ShapeGesture).
+    private var shapeGesture: ShapeGesture?
     private var isShiftHeld = false
     private var fadeTimer: Timer?
+
+    /// True while a shape/freehand gesture is in progress.
+    private var isDrawing: Bool { shapeGesture != nil }
 
     /// Owns the NSTextView subview lifecycle for composing/editing TextAnnotations.
     private let textEditing = TextEditingController()
@@ -102,8 +104,10 @@ import SpotdrawCore
         }
 
         // Draw marquee and selection outlines on top of items (Requirements 2.11, 2.15, 10.7)
-        if selectDragMode == .drawingMarquee {
-            SelectionRenderer.drawMarquee(from: selectPressPoint, to: selectCurrentPoint, in: context)
+        if let marquee = selectInteraction.marqueeRect {
+            SelectionRenderer.drawMarquee(from: CGPoint(x: marquee.minX, y: marquee.minY),
+                                          to: CGPoint(x: marquee.maxX, y: marquee.maxY),
+                                          in: context)
         }
         if !drawingState.selection.isEmpty {
             let localItems = drawingState.items.filter { $0.screenID == myDisplay }
@@ -132,73 +136,25 @@ import SpotdrawCore
     }
 
     private func drawCurrentItem(in context: CGContext) {
-        switch drawingState.activeTool {
-        case .pen, .highlighter:
-            drawCurrentStroke(in: context)
-        case .arrow:
-            drawCurrentArrow(in: context)
-        case .rectangle:
-            drawCurrentRect(in: context)
-        case .circle:
-            drawCurrentCircle(in: context)
-        case .line:
-            drawCurrentLine(in: context)
-        case .eraser:
-            break // Eraser erases on drag, no preview needed
-        case .text:
-            break // Text editing is handled by TextEditingController (task 5.4/5.5)
-        case .select:
-            break // Select tool rendering handled separately (task 7.2/7.8)
+        guard let gesture = shapeGesture else { return }
+        let color = drawingState.activeColor
+        let width = drawingState.activeLineWidth
+        switch gesture.previewGeometry(shiftHeld: isShiftHeld) {
+        case .none:
+            break
+        case .stroke(let points):
+            let alpha: CGFloat = gesture.tool == .highlighter ? 0.3 : 1.0
+            let strokeWidth = gesture.tool == .highlighter ? width * 4 : width
+            DrawingRenderer.drawStroke(points: points, color: color, lineWidth: strokeWidth, alpha: alpha, in: context)
+        case .arrow(let start, let end):
+            DrawingRenderer.drawArrow(from: start, to: end, color: color, lineWidth: width, in: context)
+        case .line(let start, let end):
+            DrawingRenderer.drawLine(from: start, to: end, color: color, lineWidth: width, in: context)
+        case .rectangle(let rect):
+            DrawingRenderer.drawRectangle(rect, color: color, lineWidth: width, in: context)
+        case .circle(let rect):
+            DrawingRenderer.drawCircle(in: rect, color: color, lineWidth: width, in: context)
         }
-    }
-
-    private func drawCurrentStroke(in context: CGContext) {
-        guard currentPoints.count > 1 else { return }
-        let alpha: CGFloat = drawingState.activeTool == .highlighter ? 0.3 : 1.0
-        let width = drawingState.activeTool == .highlighter ? drawingState.activeLineWidth * 4 : drawingState.activeLineWidth
-        DrawingRenderer.drawStroke(points: currentPoints, color: drawingState.activeColor, lineWidth: width, alpha: alpha, in: context)
-    }
-
-    private func drawCurrentArrow(in context: CGContext) {
-        let start = shapeStartPoint
-        var end = currentShapeEndPoint
-
-        if isShiftHeld {
-            end = DrawingRenderer.constrainToAngles(from: start, to: end)
-        }
-
-        DrawingRenderer.drawArrow(from: start, to: end, color: drawingState.activeColor, lineWidth: drawingState.activeLineWidth, in: context)
-    }
-
-    private func drawCurrentRect(in context: CGContext) {
-        var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: currentShapeEndPoint)
-        if isShiftHeld {
-            let side = max(rect.width, rect.height)
-            rect.size = CGSize(width: side, height: side)
-        }
-
-        DrawingRenderer.drawRectangle(rect, color: drawingState.activeColor, lineWidth: drawingState.activeLineWidth, in: context)
-    }
-
-    private func drawCurrentCircle(in context: CGContext) {
-        var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: currentShapeEndPoint)
-        if isShiftHeld {
-            let side = max(rect.width, rect.height)
-            rect.size = CGSize(width: side, height: side)
-        }
-
-        DrawingRenderer.drawCircle(in: rect, color: drawingState.activeColor, lineWidth: drawingState.activeLineWidth, in: context)
-    }
-
-    private func drawCurrentLine(in context: CGContext) {
-        let start = shapeStartPoint
-        var end = currentShapeEndPoint
-
-        if isShiftHeld {
-            end = DrawingRenderer.constrainToAngles(from: start, to: end)
-        }
-
-        DrawingRenderer.drawLine(from: start, to: end, color: drawingState.activeColor, lineWidth: drawingState.activeLineWidth, in: context)
     }
 
     // MARK: - Mouse Events
@@ -215,13 +171,8 @@ import SpotdrawCore
         isShiftHeld = event.modifierFlags.contains(.shift)
 
         switch drawingState.activeTool {
-        case .pen, .highlighter:
-            currentPoints = [point]
-            isDrawing = true
-        case .arrow, .rectangle, .circle, .line:
-            shapeStartPoint = point
-            currentShapeEndPoint = point
-            isDrawing = true
+        case .pen, .highlighter, .arrow, .rectangle, .circle, .line:
+            shapeGesture = ShapeGesture(tool: drawingState.activeTool, startingAt: point)
         case .eraser:
             drawingState.removeItems(intersecting: point, threshold: 15, screenID: displayID)
             needsDisplay = true
@@ -237,10 +188,8 @@ import SpotdrawCore
         isShiftHeld = event.modifierFlags.contains(.shift)
 
         switch drawingState.activeTool {
-        case .pen, .highlighter:
-            currentPoints.append(point)
-        case .arrow, .rectangle, .circle, .line:
-            currentShapeEndPoint = point
+        case .pen, .highlighter, .arrow, .rectangle, .circle, .line:
+            shapeGesture?.extend(to: point)
         case .eraser:
             drawingState.removeItems(intersecting: point, threshold: 15, screenID: displayID)
         case .text:
@@ -254,87 +203,21 @@ import SpotdrawCore
     override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         isShiftHeld = event.modifierFlags.contains(.shift)
-        isDrawing = false
 
         switch drawingState.activeTool {
-        case .pen:
-            currentPoints.append(point)
-            if currentPoints.count > 1 {
-                let stroke = FreehandStroke(
-                    points: DrawingRenderer.smoothPoints(currentPoints),
+        case .pen, .highlighter, .arrow, .rectangle, .circle, .line:
+            if var gesture = shapeGesture {
+                gesture.extend(to: point)
+                if let item = gesture.commit(
+                    shiftHeld: isShiftHeld,
                     color: drawingState.activeColor,
-                    lineWidth: drawingState.activeLineWidth
-                )
-                stroke.screenID = displayID
-                drawingState.addItem(stroke)
+                    lineWidth: drawingState.activeLineWidth,
+                    screenID: displayID
+                ) {
+                    drawingState.addItem(item)
+                }
             }
-            currentPoints = []
-
-        case .highlighter:
-            currentPoints.append(point)
-            if currentPoints.count > 1 {
-                let stroke = FreehandStroke(
-                    points: DrawingRenderer.smoothPoints(currentPoints),
-                    color: drawingState.activeColor,
-                    lineWidth: drawingState.activeLineWidth * 4,
-                    alpha: 0.3
-                )
-                stroke.screenID = displayID
-                drawingState.addItem(stroke)
-            }
-            currentPoints = []
-
-        case .arrow:
-            var end = point
-            if isShiftHeld { end = DrawingRenderer.constrainToAngles(from: shapeStartPoint, to: end) }
-            let arrow = ArrowShape(
-                start: shapeStartPoint,
-                end: end,
-                color: drawingState.activeColor,
-                lineWidth: drawingState.activeLineWidth
-            )
-            arrow.screenID = displayID
-            drawingState.addItem(arrow)
-
-        case .rectangle:
-            var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: point)
-            if isShiftHeld {
-                let side = max(rect.width, rect.height)
-                rect.size = CGSize(width: side, height: side)
-            }
-            let shape = RectangleShape(
-                rect: rect,
-                color: drawingState.activeColor,
-                lineWidth: drawingState.activeLineWidth
-            )
-            shape.screenID = displayID
-            drawingState.addItem(shape)
-
-        case .circle:
-            var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: point)
-            if isShiftHeld {
-                let side = max(rect.width, rect.height)
-                rect.size = CGSize(width: side, height: side)
-            }
-            let shape = CircleShape(
-                rect: rect,
-                color: drawingState.activeColor,
-                lineWidth: drawingState.activeLineWidth
-            )
-            shape.screenID = displayID
-            drawingState.addItem(shape)
-
-        case .line:
-            var end = point
-            if isShiftHeld { end = DrawingRenderer.constrainToAngles(from: shapeStartPoint, to: end) }
-            let shape = LineShape(
-                start: shapeStartPoint,
-                end: end,
-                color: drawingState.activeColor,
-                lineWidth: drawingState.activeLineWidth
-            )
-            shape.screenID = displayID
-            drawingState.addItem(shape)
+            shapeGesture = nil
 
         case .eraser:
             break
@@ -574,191 +457,101 @@ import SpotdrawCore
 
     // MARK: - Select Tool
 
-    /// State for the select tool's mouse interaction.
-    private enum SelectDragMode {
-        case none
-        case movingSelection
-        case drawingMarquee
-    }
-
-    private var selectDragMode: SelectDragMode = .none
-    private var selectPressPoint: CGPoint = .zero
-    private var selectCurrentPoint: CGPoint = .zero
-    /// Total delta accumulated during a move drag, applied once on mouseUp.
-    private var selectMoveTotalDelta: CGSize = .zero
-    /// Last point during a move drag for incremental delta computation.
-    private var selectMoveLastPoint: CGPoint = .zero
+    /// Pure state machine for the select tool's press/drag/release lifecycle.
+    /// The view interprets the InteractionOutcomes it returns into DrawingState
+    /// mutations, live-preview translations, and redraws.
+    private var selectInteraction = SelectInteraction()
 
     private func handleSelectMouseDown(at point: CGPoint, event: NSEvent) {
         let shiftHeld = event.modifierFlags.contains(.shift)
-        selectPressPoint = point
-
-        // Check if clicking on a selected item's bounding box (for move drag)
-        if let bbox = drawingState.selection.boundingBox(in: drawingState.items),
-           bbox.contains(point),
-           !drawingState.selection.isEmpty {
-            selectDragMode = .movingSelection
-            selectMoveLastPoint = point
-            selectMoveTotalDelta = .zero
-            return
-        }
-
-        // Check if clicking on an item
-        let threshold: CGFloat = 10
-        let localItems = drawingState.items.filter { $0.screenID == displayID }
-        if let hitItem = SelectionManager.topmostHit(at: point, threshold: threshold, in: localItems) {
-            if shiftHeld {
-                // Shift-click: toggle membership (Requirements 2.8, 2.9)
-                drawingState.selection.toggle(hitItem.id)
-            } else {
-                // Plain click: select only this item (Requirement 2.4)
-                drawingState.selection.set([hitItem.id])
-            }
-            needsDisplay = true
-            return
-        }
-
-        // Click on empty space
-        if !shiftHeld {
-            // No shift: clear the selection (Requirement 2.5)
-            drawingState.selection.clear()
-        }
-        // Start a marquee drag (Requirement 2.6)
-        selectDragMode = .drawingMarquee
-        selectCurrentPoint = point
-        needsDisplay = true
+        let hit = hitResult(at: point)
+        let bbox = drawingState.selection.boundingBox(in: drawingState.items)
+        let outcome = selectInteraction.begin(at: point, shiftHeld: shiftHeld,
+                                              hit: hit, currentBBox: bbox)
+        apply(outcome)
     }
 
     private func handleSelectMouseDragged(at point: CGPoint) {
-        switch selectDragMode {
-        case .none:
-            break
-        case .movingSelection:
-            let incrementalDelta = CGSize(
-                width: point.x - selectMoveLastPoint.x,
-                height: point.y - selectMoveLastPoint.y
-            )
-            selectMoveLastPoint = point
-            selectMoveTotalDelta = CGSize(
-                width: selectMoveTotalDelta.width + incrementalDelta.width,
-                height: selectMoveTotalDelta.height + incrementalDelta.height
-            )
-            // Live visual feedback: translate selected items directly
-            for item in drawingState.items where drawingState.selection.contains(item.id) {
-                item.translate(by: incrementalDelta)
-            }
-            needsDisplay = true
-        case .drawingMarquee:
-            selectCurrentPoint = point
-            needsDisplay = true
-        }
+        apply(selectInteraction.drag(to: point))
     }
 
     private func handleSelectMouseUp(at point: CGPoint) {
-        defer {
-            selectDragMode = .none
-            selectPressPoint = .zero
-            selectCurrentPoint = .zero
-        }
+        // Capture the accumulated preview delta BEFORE end() resets it, so a
+        // committed move can undo the live preview before reapplying the clamped
+        // total through DrawingState (records exactly one .move).
+        let previewDelta = selectInteraction.accumulatedMoveDelta
+        let outcome = selectInteraction.end(viewBounds: bounds)
+        apply(outcome, previewDelta: previewDelta)
+    }
 
-        switch selectDragMode {
+    /// Classifies the press point the way the old handler did: selection box first
+    /// (for move drags), then a topmost item hit, then empty space.
+    private func hitResult(at point: CGPoint) -> HitResult {
+        if !drawingState.selection.isEmpty,
+           let bbox = drawingState.selection.boundingBox(in: drawingState.items),
+           bbox.contains(point) {
+            return .insideSelectionBox
+        }
+        let localItems = drawingState.items.filter { $0.screenID == displayID }
+        if let hit = SelectionManager.topmostHit(at: point, threshold: 10, in: localItems) {
+            return .hitItem(hit.id)
+        }
+        return .emptySpace
+    }
+
+    /// Interprets a select InteractionOutcome. `previewDelta` is the live-preview
+    /// delta accumulated before `end()` reset it, needed to undo the preview on commit.
+    private func apply(_ outcome: InteractionOutcome, previewDelta: CGSize = .zero) {
+        switch outcome {
         case .none:
             break
-        case .movingSelection:
-            finishMoveDrag()
-        case .drawingMarquee:
-            finishMarqueeDrag()
-        }
-    }
 
-    private func finishMoveDrag() {
-        let netDx = abs(selectMoveTotalDelta.width)
-        let netDy = abs(selectMoveTotalDelta.height)
-
-        if max(netDx, netDy) < 1.0 {
-            // Below threshold: undo the live preview and record nothing (Requirement 3.10)
-            let negated = CGSize(width: -selectMoveTotalDelta.width, height: -selectMoveTotalDelta.height)
-            for item in drawingState.items where drawingState.selection.contains(item.id) {
-                item.translate(by: negated)
-            }
-        } else {
-            // Clamp: ensure at least 20pt of selection bounding box remains visible (Requirement 3.9)
-            let clampedDelta = clampMoveDelta(selectMoveTotalDelta)
-
-            // Undo the live preview translation
-            let negated = CGSize(width: -selectMoveTotalDelta.width, height: -selectMoveTotalDelta.height)
-            for item in drawingState.items where drawingState.selection.contains(item.id) {
-                item.translate(by: negated)
-            }
-
-            // Apply the clamped delta through DrawingState (records one .move)
-            let selectedIDs = Array(drawingState.selection.selectedIDs)
-            drawingState.translate(ids: selectedIDs, by: clampedDelta)
-        }
-        // Selection retained after move (Requirement 3.11)
-        selectMoveTotalDelta = .zero
-    }
-
-    /// Clamps a move delta so at least 20pt of the selection bounding box stays
-    /// within the overlay view bounds (Requirement 3.9).
-    private func clampMoveDelta(_ delta: CGSize) -> CGSize {
-        guard let bbox = drawingState.selection.boundingBox(in: drawingState.items) else {
-            return delta
-        }
-        let viewBounds = self.bounds
-        let minVisible: CGFloat = 20
-
-        // Compute where the bbox would end up with the unclamped delta
-        // (note: items already have the live preview applied, so bbox reflects
-        // the current visual position; we need to compute from the original position)
-        // Since we undo live preview before applying clamped, we compute from
-        // the original bbox (before any preview translation was applied).
-        // Actually, at this point the live preview IS already applied to the items,
-        // so bbox is the "moved" position. We need the original bbox.
-        // The original bbox = current bbox offset by -selectMoveTotalDelta
-        let originalBbox = bbox.offsetBy(dx: -selectMoveTotalDelta.width, dy: -selectMoveTotalDelta.height)
-
-        // Now compute where originalBbox + delta would land
-        var clampedDx = delta.width
-        var clampedDy = delta.height
-
-        let movedBbox = originalBbox.offsetBy(dx: clampedDx, dy: clampedDy)
-
-        // Clamp horizontal: ensure at least minVisible overlap with viewBounds
-        if movedBbox.maxX < viewBounds.minX + minVisible {
-            clampedDx = (viewBounds.minX + minVisible) - originalBbox.maxX
-        } else if movedBbox.minX > viewBounds.maxX - minVisible {
-            clampedDx = (viewBounds.maxX - minVisible) - originalBbox.minX
-        }
-
-        // Clamp vertical: ensure at least minVisible overlap with viewBounds
-        let movedBboxV = originalBbox.offsetBy(dx: clampedDx, dy: clampedDy)
-        if movedBboxV.maxY < viewBounds.minY + minVisible {
-            clampedDy = (viewBounds.minY + minVisible) - originalBbox.maxY
-        } else if movedBboxV.minY > viewBounds.maxY - minVisible {
-            clampedDy = (viewBounds.maxY - minVisible) - originalBbox.minY
-        }
-
-        return CGSize(width: clampedDx, height: clampedDy)
-    }
-
-    private func finishMarqueeDrag() {
-        let marquee = rectFromPoints(selectPressPoint, selectCurrentPoint)
-        if marquee.width > 0 || marquee.height > 0 {
-            let localItems = drawingState.items.filter { $0.screenID == displayID }
-            let ids = SelectionManager.itemsIntersecting(marquee, in: localItems)
+        case .setSelection(let ids):
             drawingState.selection.set(ids)
-        }
-        needsDisplay = true
-    }
+            needsDisplay = true
 
-    /// Constructs a normalized rect from two corner points.
-    private func rectFromPoints(_ a: CGPoint, _ b: CGPoint) -> CGRect {
-        let x = min(a.x, b.x)
-        let y = min(a.y, b.y)
-        let w = abs(b.x - a.x)
-        let h = abs(b.y - a.y)
-        return CGRect(x: x, y: y, width: w, height: h)
+        case .toggleSelection(let id):
+            drawingState.selection.toggle(id)
+            needsDisplay = true
+
+        case .clearSelection:
+            drawingState.selection.clear()
+            needsDisplay = true
+
+        case .previewTranslate(let delta):
+            // Live visual feedback: translate selected items directly, bypassing
+            // the undo stack (a single .move is recorded on commit).
+            for item in drawingState.items where drawingState.selection.contains(item.id) {
+                item.translate(by: delta)
+            }
+            needsDisplay = true
+
+        case .marquee:
+            // Marquee rect is read from selectInteraction.marqueeRect during draw().
+            needsDisplay = true
+
+        case .commitMarquee(let rect):
+            if rect.width > 0 || rect.height > 0 {
+                let localItems = drawingState.items.filter { $0.screenID == displayID }
+                let ids = SelectionManager.itemsIntersecting(rect, in: localItems)
+                drawingState.selection.set(ids)
+            }
+            needsDisplay = true
+
+        case .commitMove(let delta):
+            // Undo the live preview (items already carry previewDelta), then apply
+            // the clamped total once through DrawingState. When delta == .zero the
+            // move was below threshold: undo the preview and record nothing.
+            let negated = CGSize(width: -previewDelta.width, height: -previewDelta.height)
+            for item in drawingState.items where drawingState.selection.contains(item.id) {
+                item.translate(by: negated)
+            }
+            if delta != .zero {
+                let selectedIDs = Array(drawingState.selection.selectedIDs)
+                drawingState.translate(ids: selectedIDs, by: delta)
+            }
+            needsDisplay = true
+        }
     }
 
     // MARK: - Keyboard Events
@@ -970,10 +763,8 @@ import SpotdrawCore
         }
 
         // Cancel any in-progress select drag
-        if selectDragMode != .none {
-            selectDragMode = .none
-            selectPressPoint = .zero
-            selectCurrentPoint = .zero
+        if selectInteraction.mode != .none {
+            selectInteraction = SelectInteraction()
         }
 
         needsDisplay = true
@@ -982,85 +773,16 @@ import SpotdrawCore
     /// Commits the current in-progress drawing stroke/shape using whatever
     /// points have been accumulated so far, without waiting for mouseUp.
     private func commitCurrentDrawing() {
-        isDrawing = false
-
-        switch drawingState.activeTool {
-        case .pen:
-            if currentPoints.count > 1 {
-                let stroke = FreehandStroke(
-                    points: DrawingRenderer.smoothPoints(currentPoints),
-                    color: drawingState.activeColor,
-                    lineWidth: drawingState.activeLineWidth
-                )
-                stroke.screenID = displayID
-                drawingState.addItem(stroke)
-            }
-            currentPoints = []
-
-        case .highlighter:
-            if currentPoints.count > 1 {
-                let stroke = FreehandStroke(
-                    points: DrawingRenderer.smoothPoints(currentPoints),
-                    color: drawingState.activeColor,
-                    lineWidth: drawingState.activeLineWidth * 4,
-                    alpha: 0.3
-                )
-                stroke.screenID = displayID
-                drawingState.addItem(stroke)
-            }
-            currentPoints = []
-
-        case .arrow:
-            let arrow = ArrowShape(
-                start: shapeStartPoint,
-                end: currentShapeEndPoint,
-                color: drawingState.activeColor,
-                lineWidth: drawingState.activeLineWidth
-            )
-            arrow.screenID = displayID
-            drawingState.addItem(arrow)
-
-        case .rectangle:
-            var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: currentShapeEndPoint)
-            if isShiftHeld {
-                let side = max(rect.width, rect.height)
-                rect.size = CGSize(width: side, height: side)
-            }
-            let shape = RectangleShape(
-                rect: rect,
-                color: drawingState.activeColor,
-                lineWidth: drawingState.activeLineWidth
-            )
-            shape.screenID = displayID
-            drawingState.addItem(shape)
-
-        case .circle:
-            var rect = DrawingRenderer.rectFrom(start: shapeStartPoint, end: currentShapeEndPoint)
-            if isShiftHeld {
-                let side = max(rect.width, rect.height)
-                rect.size = CGSize(width: side, height: side)
-            }
-            let shape = CircleShape(
-                rect: rect,
-                color: drawingState.activeColor,
-                lineWidth: drawingState.activeLineWidth
-            )
-            shape.screenID = displayID
-            drawingState.addItem(shape)
-
-        case .line:
-            let shape = LineShape(
-                start: shapeStartPoint,
-                end: currentShapeEndPoint,
-                color: drawingState.activeColor,
-                lineWidth: drawingState.activeLineWidth
-            )
-            shape.screenID = displayID
-            drawingState.addItem(shape)
-
-        case .eraser, .text, .select:
-            break
+        guard let gesture = shapeGesture else { return }
+        if let item = gesture.commit(
+            shiftHeld: isShiftHeld,
+            color: drawingState.activeColor,
+            lineWidth: drawingState.activeLineWidth,
+            screenID: displayID
+        ) {
+            drawingState.addItem(item)
         }
+        shapeGesture = nil
     }
 
     // MARK: - Board Toggle
