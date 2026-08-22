@@ -269,68 +269,7 @@ import SpotdrawCore
     private let panelHeight: CGFloat = 60
 
     var computedWidth: CGFloat {
-        var width: CGFloat = hPadding // leading padding
-        width += 24 // drag handle
-        width += itemSpacing * 2 // spacing after drag handle
-
-        var sectionCount = 0
-
-        if features.annotationActive {
-            // 5 swatches + separator + 6 tools
-            let swatchesW = CGFloat(5) * 30 + CGFloat(4) * itemSpacing
-            let separatorW: CGFloat = 1 + itemSpacing * 2
-            let toolsW = CGFloat(6) * 36 + CGFloat(5) * itemSpacing
-            width += swatchesW + separatorW + toolsW
-            sectionCount += 1
-        }
-
-        if features.highlightActive {
-            if sectionCount > 0 { width += itemSpacing + 1 + itemSpacing } // separator
-            // Label "Highlight" ~40pt + spacing
-            width += 50 + itemSpacing
-            // 5 small color swatches
-            width += CGFloat(5) * 24 + CGFloat(4) * 6
-            width += itemSpacing
-            // 4 size buttons (S/M/L/XL)
-            width += CGFloat(4) * 30 + CGFloat(3) * 6
-            width += itemSpacing
-            // 4 shape buttons
-            width += CGFloat(4) * 30 + CGFloat(3) * 6
-            width += itemSpacing
-            // Glow button
-            width += 20
-            sectionCount += 1
-        }
-
-        if features.spotlightActive {
-            if sectionCount > 0 { width += itemSpacing + 1 + itemSpacing } // separator
-            // Label "Spotlight" ~42pt + spacing
-            width += 52 + itemSpacing
-            // 3 size buttons (S/M/L)
-            width += CGFloat(3) * 30 + CGFloat(2) * 6
-            width += itemSpacing
-            // 3 dim buttons (L/M/D)
-            width += CGFloat(3) * 30 + CGFloat(2) * 6
-            sectionCount += 1
-        }
-
-        if features.zoomActive {
-            if sectionCount > 0 { width += itemSpacing + 1 + itemSpacing } // separator
-            // Label "Zoom" ~26pt + spacing
-            width += 34 + itemSpacing
-            // − button + level label + + button
-            width += 30 + 6 + 40 + 6 + 30
-            width += itemSpacing
-            // 3 bubble size buttons (S/M/L)
-            width += CGFloat(3) * 30 + CGFloat(2) * 6
-            sectionCount += 1
-        }
-
-        width += itemSpacing // before dismiss
-        width += 26 // dismiss button
-        width += hPadding // trailing padding
-
-        return width
+        ToolbarLayout(features: features).totalWidth
     }
 
     // MARK: - Init

@@ -52,6 +52,12 @@ if selectInteractionResults.contains(where: { !$0.passed }) {
     exit(1)
 }
 
+// Run ToolbarLayout tests (toolbar-panel-split spec, Requirements 2.2, 2.4, 3.2)
+let toolbarLayoutResults = runAllToolbarLayoutTests()
+if toolbarLayoutResults.contains(where: { !$0.passed }) {
+    exit(1)
+}
+
 // Run zoom unit tests
 let zoomUnitResults = MainActor.assumeIsolated {
     runAllZoomUnitTests()
