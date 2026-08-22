@@ -1,0 +1,1 @@
+../../Sources/Spotdraw/Overlay/ToolbarViews/NSColor+Equivalence.swift
